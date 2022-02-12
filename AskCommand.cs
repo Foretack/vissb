@@ -19,7 +19,7 @@ namespace Core
         public static async Task RunCommand(string Username, string Input)
         {
             if (StreamOnline) { Bot.client.SendMessage(Bot.Channel, "Okayeg 💢 u nab? strem on"); return; }
-            if (Cooldown.OnCooldown(Username).Item1) { Bot.client.SendMessage(Bot.Channel, $"@{Username}, forsenDonk 1m cooldown. Wait {Cooldown.OnCooldown(Username).Item2}s"); return; }
+            if (Cooldown.OnCooldown(Username).Item1) { Bot.client.SendMessage(Bot.Channel, $"@{Username}, forsenDonk Wait {Cooldown.OnCooldown(Username).Item2}s"); return; }
 
             RequestBody body = new()
             {

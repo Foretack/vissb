@@ -4,6 +4,8 @@ using TwitchLib.Client.Models;
 using TwitchLib.Communication.Clients;
 using TwitchLib.Communication.Models;
 
+#pragma warning disable CS8618
+
 namespace Core
 {
     public class Core
@@ -59,15 +61,19 @@ namespace Core
             string message = Received.ChatMessage.Message;
             string prompt = string.Empty;
 
-            if (message.ToLower().StartsWith(Bot.Username))
+            if (message.ToLower().StartsWith(Bot.Username + " "))
             {
-                prompt = message.Replace(Bot.Username, "");
+                prompt = message.Replace(Bot.Username + " ", "");
+
+                if (string.IsNullOrWhiteSpace(prompt) || string.IsNullOrEmpty(prompt)) return;
 
                 await AskCommand.RunCommand(Received.ChatMessage.Username, prompt);
             }
-            else if (message.ToLower().EndsWith(Bot.Username))
+            else if (message.ToLower().EndsWith(" " + Bot.Username))
             {
-                prompt = message.Replace(Bot.Username, "");
+                prompt = message.Replace(" " + Bot.Username, "");
+
+                if (string.IsNullOrWhiteSpace(prompt) || string.IsNullOrEmpty(prompt)) return;
 
                 await AskCommand.RunCommand(Received.ChatMessage.Username, prompt);
             }
