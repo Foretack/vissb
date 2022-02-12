@@ -5,6 +5,7 @@ using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
+using System.Text.RegularExpressions;
 
 namespace Core
 {
@@ -39,8 +40,18 @@ namespace Core
             if (response.choices.Length == 0) { Bot.client.SendMessage(Bot.Channel, reply); Cooldown.AddCooldown(Username); return; }
 
             reply = $"@{Username}, {response.choices.First().text.Substring(1)}";
-            Bot.client.SendMessage(Bot.Channel, reply);
+            Bot.client.SendMessage(Bot.Channel, Filter(reply));
             Cooldown.AddCooldown(Username);
+        }
+
+        private static readonly Regex NotTwelve = new(@"(\b[1-9]\b|\b1[012]\b|twelve|eleven|ten|nine|eight|seven|six|five|four|three|two|one).*year(s)?.*(old|age)");
+        private static string Filter(string Input)
+        {
+            string output = Input;
+
+            if (NotTwelve.Match(Input).Success) output = Input.Replace(NotTwelve.Match(Input).Value, " YOURM0M ");
+
+            return output;
         }
     }
 
