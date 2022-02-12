@@ -28,14 +28,16 @@ namespace Core
             };
             client.OnStreamDown += (s, e) =>
             {
+                Bot.client.SendMessage(Bot.Channel, "billyArrive channel offline");
                 AskCommand.StreamOnline = false;
             };
             client.OnViewCount += (s, e) =>
             {
+                if (AskCommand.StreamOnline == false) Bot.client.SendMessage(Bot.Channel, "billyLeave channel online");
                 AskCommand.StreamOnline = true;
             };
 
-            client.ListenToVideoPlayback("17497365");
+            client.ListenToVideoPlayback(Bot.ChannelID.ToString());
 
             client.Connect();
         }
