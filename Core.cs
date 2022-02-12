@@ -23,8 +23,8 @@ namespace Core
     {
         public static readonly string Username = "TWITCH_USERNAME";
         public static readonly string Token = "ACCESS_TOKEN_GOES_HERE";
-        public static readonly string Channel = "minusinsanity";
         public static readonly string OpenAIToken = "Bearer OPEN_AI_AUTH";
+        public static readonly string Channel = "minusinsanity";
         public static readonly int ChannelID = 17497365;
 
         public static TwitchClient client;

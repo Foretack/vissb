@@ -17,8 +17,8 @@ namespace Core
 
         public static async Task RunCommand(string Username, string Input)
         {
-            if (StreamOnline) { Bot.client.SendMessage(Bot.Channel, "Okayeg 💢 u nab? strem on"); return; }
-            if (Cooldown.OnCooldown(Username).Item1) { Bot.client.SendMessage(Bot.Channel, $"@{Username}, forsenDonk Wait {Cooldown.OnCooldown(Username).Item2}s"); return; }
+            if (StreamOnline) { return; }
+            if (Cooldown.OnCooldown(Username).Item1) { QueueMessage($"@{Username}, forsenDonk Wait {Cooldown.OnCooldown(Username).Item2}s"); return; }
 
             RequestBody body = new()
             {
@@ -32,26 +32,55 @@ namespace Core
             StringContent content = new(contentAsString, Encoding.UTF8, "application/json");
             HttpResponseMessage req = await Requests.PostAsync(APILink, content);
 
-            if (req.StatusCode != HttpStatusCode.OK) { Bot.client.SendMessage(Bot.Channel, "eror Sadeg"); return; }
+            if (req.StatusCode != HttpStatusCode.OK) { QueueMessage("eror Sadeg"); return; }
 
             ResponseBody response = JsonConvert.DeserializeObject<ResponseBody>(req.Content.ReadAsStringAsync().Result) ?? throw new Exception("This should not happen");
             string reply = $"@{Username}, <no response>";
 
-            if (response.choices.Length == 0) { Bot.client.SendMessage(Bot.Channel, reply); Cooldown.AddCooldown(Username); return; }
+            if (response.choices.Length == 0) { QueueMessage(Filter(reply)); Cooldown.AddCooldown(Username); return; }
 
-            reply = $"@{Username}, {response.choices.First().text.Substring(1)}";
-            Bot.client.SendMessage(Bot.Channel, Filter(reply));
+            reply = $"@{Username}, {response.choices.First().text.Replace('\n', '\0')}";
+            QueueMessage(Filter(reply));
             Cooldown.AddCooldown(Username);
         }
 
         private static readonly Regex NotTwelve = new(@"(\b[1-9]\b|\b1[012]\b|twelve|eleven|ten|nine|eight|seven|six|five|four|three|two|one).*year(s)?.*(old|age)");
+
         private static string Filter(string Input)
         {
             string output = Input;
 
-            if (NotTwelve.Match(Input).Success) output = Input.Replace(NotTwelve.Match(Input).Value, " YOURM0M ");
+            if (NotTwelve.Match(output).Success) output = Input.Replace(NotTwelve.Match(Input).Value, " YOURM0M ");
+            if (output.Length > 495) output = output.Substring(0, 480) + "... (too long)";
 
             return output;
+        }
+
+        private static Queue<string> Messages = new();
+
+        private static void QueueMessage(string Message)
+        {
+            Messages.Enqueue(Message);
+
+            System.Timers.Timer queueHandler = new();
+
+            queueHandler.Interval = 3000;
+            queueHandler.AutoReset = true;
+            queueHandler.Enabled = false;
+            queueHandler.Start();
+
+            queueHandler.Elapsed += (s, e) =>
+            {
+                if (Messages.Count > 0)
+                {
+                    Bot.client.SendMessage(Bot.Channel, Messages.First());
+                    Messages.Dequeue();
+                }
+                else
+                {
+                    queueHandler.Stop();
+                }
+            };
         }
     }
 
