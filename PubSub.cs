@@ -26,25 +26,16 @@ namespace Core
                 if (!e.Successful) throw new Exception($"Failed to listen! Response: {e.Response}");
                 else Console.WriteLine($"listening to {e.Topic}");
             };
-            client.OnStreamUp += (s, e) => 
-            {
-                Console.WriteLine($"Stream just went up! Play delay: {e.PlayDelay}, server time: {e.ServerTime}");
-            };
             client.OnStreamDown += (s, e) =>
             {
-                Console.WriteLine($"Stream just went down! Server time: {e.ServerTime}");
-            };
-            client.OnFollow += (s, e) =>
-            {
-                Console.WriteLine($"{e.Username} just followed!");
+                AskCommand.StreamOnline = false;
             };
             client.OnViewCount += (s, e) =>
             {
-                Console.WriteLine($"{e.Viewers} {e.ServerTime}");
+                AskCommand.StreamOnline = true;
             };
 
             client.ListenToVideoPlayback("17497365");
-            client.ListenToFollows("17497365");
 
             client.Connect();
         }
