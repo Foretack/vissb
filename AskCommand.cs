@@ -12,8 +12,6 @@ namespace Core
     {
         public static bool StreamOnline = false;
         public static HttpClient Requests = new();
-
-        private static readonly string AuthorizationString = "Bearer OPENAI_TOKEN_GOES_HERE";
         private static readonly string APILink = "https://api.openai.com/v1/engines/text-davinci-001/completions";
 
         public static async Task RunCommand(string Username, string Input)
@@ -31,9 +29,7 @@ namespace Core
 
             string contentAsString = JsonConvert.SerializeObject(body);
             StringContent content = new(contentAsString, Encoding.UTF8, "application/json");
-            Requests.DefaultRequestHeaders.Add("Authorization", AuthorizationString);
             HttpResponseMessage req = await Requests.PostAsync(APILink, content);
-            Requests.DefaultRequestHeaders.Remove("Authorization");
 
             if (req.StatusCode != HttpStatusCode.OK) { Bot.client.SendMessage(Bot.Channel, "eror Sadeg"); return; }
 
