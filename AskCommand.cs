@@ -18,12 +18,16 @@ namespace Core
         public static async Task RunCommand(string Username, string Input)
         {
             if (StreamOnline) { return; }
-            if (Cooldown.OnCooldown(Username).Item1) { QueueMessage($"@{Username}, forsenDonk Wait {Cooldown.OnCooldown(Username).Item2}s"); return; }
+            if (Cooldown.OnCooldown(Username).Item1) 
+            { 
+                QueueMessage($"@{Username}, forsenDonk Wait {Cooldown.OnCooldown(Username).Item2}s"); 
+                return; 
+            }
 
             RequestBody body = new()
             {
                 prompt = Input,
-                max_tokens = 160,
+                max_tokens = 90,
                 temperature = 0.7f,
                 frequency_penalty = 0.5f
             };
@@ -32,14 +36,24 @@ namespace Core
             StringContent content = new(contentAsString, Encoding.UTF8, "application/json");
             HttpResponseMessage req = await Requests.PostAsync(APILink, content);
 
-            if (req.StatusCode != HttpStatusCode.OK) { QueueMessage("eror Sadeg"); return; }
+            if (req.StatusCode != HttpStatusCode.OK) 
+            {
+                QueueMessage("eror Sadeg");
+                return; 
+            }
 
-            ResponseBody response = JsonConvert.DeserializeObject<ResponseBody>(req.Content.ReadAsStringAsync().Result) ?? throw new Exception("This should not happen");
+            string result = req.Content.ReadAsStringAsync().Result;
+            ResponseBody response = JsonConvert.DeserializeObject<ResponseBody>(result) ?? throw new Exception();
             string reply = $"@{Username}, <no response>";
 
-            if (response.choices.Length == 0) { QueueMessage(Filter(reply)); Cooldown.AddCooldown(Username); return; }
+            if (response.choices.Length == 0) 
+            { 
+                QueueMessage(Filter(reply));
+                Cooldown.AddCooldown(Username);
+                return; 
+            }
 
-            reply = $"@{Username}, {response.choices.First().text.Replace('\n', '\0')}";
+            reply = $"@{Username}, {response.choices.First().text.Replace('\n', ' ')}";
             QueueMessage(Filter(reply));
             Cooldown.AddCooldown(Username);
         }
@@ -73,8 +87,7 @@ namespace Core
             {
                 if (Messages.Count > 0)
                 {
-                    Bot.client.SendMessage(Bot.Channel, Messages.First());
-                    Messages.Dequeue();
+                    Bot.client.SendMessage(Bot.Channel, Messages.Dequeue());
                 }
                 else
                 {
