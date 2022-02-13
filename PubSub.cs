@@ -31,9 +31,9 @@ namespace Core
                 Bot.client.SendMessage(Bot.Channel, "billyArrive channel offline");
                 AskCommand.StreamOnline = false;
             };
-            client.OnViewCount += (s, e) =>
+            client.OnStreamUp += (s, e) =>
             {
-                if (AskCommand.StreamOnline == false) Bot.client.SendMessage(Bot.Channel, "billyLeave channel online");
+                Bot.client.SendMessage(Bot.Channel, "billyLeave channel online");
                 AskCommand.StreamOnline = true;
             };
 
