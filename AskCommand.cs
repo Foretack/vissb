@@ -67,10 +67,10 @@ namespace Core
         {
             string output = Input;
 
-            if (NoLinks.Match(output).Success) output = Input.Replace(NoLinks.Match(output).Value, " MODS no further links ");
-            if (NoLinksHTTP.Match(output).Success) output = Input.Replace(NoLinksHTTP.Match(output).Value, " MODS NO MORE LINKS ");
-            if (NotTwelve.Match(output).Success) output = Input.Replace(NotTwelve.Match(Input).Value, " YOURM0M ");
             if (NoIps.Match(output.Remove(output.Length - 1)).Success) output = Input.Replace(NoIps.Match(Input).Value, " BigTrouble ");
+            if (NoLinksHTTP.Match(output).Success) output = Input.Replace(NoLinksHTTP.Match(output).Value, " MODS NO MORE LINKS ");
+            if (NoLinks.Match(output).Success) output = Input.Replace(NoLinks.Match(output).Value, " MODS no further links ");
+            if (NotTwelve.Match(output).Success) output = Input.Replace(NotTwelve.Match(Input).Value, " YOURM0M ");
             if (output.Length > 495) output = output.Substring(0, 480) + "... (too long)";
 
             return output;
