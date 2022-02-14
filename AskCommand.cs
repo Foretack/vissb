@@ -58,6 +58,7 @@ namespace Core
             Cooldown.AddCooldown(Username);
         }
 
+        private static readonly Regex NoBruhMoments = new(@"(?:(?:\b(?<![-=\.])|monka)(?:[Nnñ]|[Ii7]V)|η|[\/|]\\[\/|])[\s\.]*?[liI1y!j\/|]+[\s\.]*?(?:[GgbB6934Q🅱qğĜƃ၅5\*][\s\.]*?){2,}(?!arcS|l|Ktlw|ylul|ie217|64|\d? ?times)");
         private static readonly Regex NotTwelve = new(@"(\b[1-9]\b|\b1[012]\b|twelve|eleven|ten|nine|eight|seven|six|five|four|three|two|one).*year(s)?.*(old|age)");
         private static readonly Regex NoLinksHTTP = new(@"https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)");
         private static readonly Regex NoLinks = new(@"[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)");
@@ -67,6 +68,7 @@ namespace Core
         {
             string output = Input;
 
+            if (NoBruhMoments.Match(output).Success) output = Input.Replace(NoBruhMoments.Match(Input).Value, " Uhmgi ");
             if (NoIps.Match(output.Remove(output.Length - 1)).Success) output = Input.Replace(NoIps.Match(Input).Value, " BigTrouble ");
             if (NoLinksHTTP.Match(output).Success) output = Input.Replace(NoLinksHTTP.Match(output).Value, " MODS NO MORE LINKS ");
             if (NoLinks.Match(output).Success) output = Input.Replace(NoLinks.Match(output).Value, " MODS no further links ");
