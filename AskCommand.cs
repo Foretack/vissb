@@ -59,14 +59,18 @@ namespace Core
         }
 
         private static readonly Regex NotTwelve = new(@"(\b[1-9]\b|\b1[012]\b|twelve|eleven|ten|nine|eight|seven|six|five|four|three|two|one).*year(s)?.*(old|age)");
+        private static readonly Regex NoLinksHTTP = new(@"https?:\/\/(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)");
+        private static readonly Regex NoLinks = new(@"[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)");
         private static readonly Regex NoIps = new(@"\b((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.|$)){4}\b");
 
         private static string Filter(string Input)
         {
             string output = Input;
 
+            if (NoLinks.Match(output).Success) output = Input.Replace(NoLinks.Match(output).Value, " MODS no further links ");
+            if (NoLinksHTTP.Match(output).Success) output = Input.Replace(NoLinksHTTP.Match(output).Value, " MODS NO MORE LINKS ");
             if (NotTwelve.Match(output).Success) output = Input.Replace(NotTwelve.Match(Input).Value, " YOURM0M ");
-            if (NoIps.Match(output).Success) output = Input.Replace(NoIps.Match(Input).Value, " BigTrouble ");
+            if (NoIps.Match(output.Remove(output.Length - 1)).Success) output = Input.Replace(NoIps.Match(Input).Value, " BigTrouble ");
             if (output.Length > 495) output = output.Substring(0, 480) + "... (too long)";
 
             return output;
