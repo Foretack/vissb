@@ -28,8 +28,8 @@ namespace Core
             {
                 prompt = Input,
                 max_tokens = 90,
-                temperature = 0.7f,
-                frequency_penalty = 0.5f
+                temperature = 0.3f,
+                frequency_penalty = 1f
             };
 
             string contentAsString = JsonConvert.SerializeObject(body);
