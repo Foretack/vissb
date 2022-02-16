@@ -68,34 +68,10 @@ namespace Core
         {
             string output = Input;
 
-            if (NoBruhMoments.Match(output).Success)
-            {
-                foreach (var match in NoBruhMoments.Matches(output).ToList())
-                {
-                    output.Replace(match.Value, " Uhmgi ");
-                }
-            }
-            if (NotTwelve.Match(output).Success)
-            {
-                foreach (var match in NotTwelve.Matches(output).ToList())
-                {
-                    output.Replace(match.Value, " YOURM0M ");
-                }
-            }
-            if (NoLinks.Match(output).Success)
-            {
-                foreach (var match in NoLinks.Matches(output).ToList())
-                {
-                    output.Replace(match.Value, " MODS [LINK] ");
-                }
-            }
-            if (NoIps.Match(output).Success)
-            {
-                foreach (var match in NoIps.Matches(output).ToList())
-                {
-                    output.Replace(match.Value, " BigTrouble ");
-                }
-            }
+            if (NoIps.Match(output.Remove(output.Length - 1)).Success) output = Input.Replace(NoIps.Match(Input).Value, " BigTrouble ");
+            if (NoBruhMoments.Match(output).Success) output = Input.Replace(NoBruhMoments.Match(Input).Value, " Uhmgi ");
+            if (NoLinks.Match(output).Success) output = Input.Replace(NoLinks.Match(output).Value, " MODS [LINK] ");
+            if (NotTwelve.Match(output).Success) output = Input.Replace(NotTwelve.Match(Input).Value, " YOURM0M ");
             if (output.Length > 495) output = output.Substring(0, 474) + "... (too long)";
 
             return output;
