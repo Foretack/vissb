@@ -15,6 +15,11 @@ namespace Core
         public static HttpClient Requests = new();
         private static readonly string APILink = "https://api.openai.com/v1/engines/text-davinci-001/completions";
 
+        public AskCommand()
+        {
+            HandleMessageQueue();
+        }
+
         public static async Task RunCommand(string Username, string Input)
         {
             if (StreamOnline) { return; }
@@ -79,24 +84,19 @@ namespace Core
 
         private static Queue<string> Messages = new();
 
-        public static void HandleMessageQueue()
+        private static void HandleMessageQueue()
         {
             System.Timers.Timer queueTimer = new();
 
             queueTimer.Interval = 3000;
             queueTimer.AutoReset = true;
-            queueTimer.Enabled = false;
-            queueTimer.Start();
+            queueTimer.Enabled = true;
 
             queueTimer.Elapsed += (s, e) =>
             {
                 if (Messages.Count > 0)
                 {
                     Bot.client.SendMessage(Bot.Channel, Messages.Dequeue());
-                }
-                else
-                {
-                    queueTimer.Stop();
                 }
             };
         }
@@ -146,11 +146,19 @@ namespace Core
 
     class ResponseBody
     {
+        public string id { get; set; }
+        [JsonProperty("object")]
+        public string @object { get; set; }
+        public int created { get; set; }
+        public string model { get; set; }
         public Choice[] choices { get; set; }
 
         public class Choice
         {
             public string text { get; set; }
+            public int index { get; set; }
+            public int? logprobs { get; set; }
+            public string? finish_reason { get; set; }
         }
     }
 }
