@@ -77,7 +77,7 @@ namespace Core
             if (NoBruhMoments.Match(output).Success) output = Input.Replace(NoBruhMoments.Match(Input).Value, " Uhmgi ");
             if (NoLinks.Match(output).Success) output = Input.Replace(NoLinks.Match(output).Value, " MODS [LINK] ");
             if (NotTwelve.Match(output).Success) output = Input.Replace(NotTwelve.Match(Input).Value, " YOURM0M ");
-            if (output.Length > 495) output = output.Substring(0, 474) + "... (too long)";
+            if (output.Length > 495) output = output.Substring(0, 460) + "... (too long)";
 
             return output;
         }
