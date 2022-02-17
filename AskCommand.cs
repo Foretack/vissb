@@ -20,7 +20,7 @@ namespace Core
             if (StreamOnline) { return; }
             if (Cooldown.OnCooldown(Username).Item1) 
             { 
-                QueueMessage($"@{Username}, forsenDonk Wait {Cooldown.OnCooldown(Username).Item2}s"); 
+                Messages.Enqueue($"@{Username}, forsenDonk Wait {Cooldown.OnCooldown(Username).Item2}s"); 
                 return; 
             }
 
@@ -38,7 +38,7 @@ namespace Core
 
             if (req.StatusCode != HttpStatusCode.OK) 
             {
-                QueueMessage("eror Sadeg");
+                Messages.Enqueue("eror Sadeg");
                 return; 
             }
 
@@ -47,15 +47,15 @@ namespace Core
             string reply = $"@{Username}, <no response>";
 
             if (response.choices.Length == 0) 
-            { 
-                QueueMessage(Filter(reply));
+            {
+                Messages.Enqueue(Filter(reply));
                 Cooldown.AddCooldown(Username);
                 return; 
             }
 
             string _reply = response.choices.First().text.Substring(response.choices.First().text.IndexOf("\n\n"));
             reply = $"@{Username}, {_reply}";
-            QueueMessage(Filter(reply));
+            Messages.Enqueue(Filter(reply));
             Cooldown.AddCooldown(Username);
         }
 
@@ -79,18 +79,16 @@ namespace Core
 
         private static Queue<string> Messages = new();
 
-        private static void QueueMessage(string Message)
+        public static void HandleMessageQueue()
         {
-            Messages.Enqueue(Message);
+            System.Timers.Timer queueTimer = new();
 
-            System.Timers.Timer queueHandler = new();
+            queueTimer.Interval = 3000;
+            queueTimer.AutoReset = true;
+            queueTimer.Enabled = false;
+            queueTimer.Start();
 
-            queueHandler.Interval = 3000;
-            queueHandler.AutoReset = true;
-            queueHandler.Enabled = false;
-            queueHandler.Start();
-
-            queueHandler.Elapsed += (s, e) =>
+            queueTimer.Elapsed += (s, e) =>
             {
                 if (Messages.Count > 0)
                 {
@@ -98,7 +96,7 @@ namespace Core
                 }
                 else
                 {
-                    queueHandler.Stop();
+                    queueTimer.Stop();
                 }
             };
         }
@@ -148,19 +146,11 @@ namespace Core
 
     class ResponseBody
     {
-        public string id { get; set; }
-        [JsonProperty("object")]
-        public string @object { get; set; }
-        public int created { get; set; }
-        public string model { get; set; }
         public Choice[] choices { get; set; }
 
         public class Choice
         {
             public string text { get; set; }
-            public int index { get; set; }
-            public int? logprobs { get; set; }
-            public string? finish_reason { get; set; }
         }
     }
 }

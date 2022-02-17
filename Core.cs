@@ -53,6 +53,7 @@ namespace Core
             {
                 Console.WriteLine("connected");
                 PubSub pubSub = new();
+                AskCommand.HandleMessageQueue();
             };
 
             client.Connect();
