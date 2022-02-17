@@ -58,8 +58,8 @@ namespace Core
                 return; 
             }
 
-            string _reply = response.choices.First().text.Substring(response.choices.First().text.IndexOf("\n\n"));
-            reply = $"@{Username}, {_reply}";
+            string replyText = response.choices.First().text;
+            reply = $"@{Username}, {replyText.Substring((replyText.IndexOf("\n\n") < 0 ? 0 : replyText.IndexOf("\n\n")))}";
             Messages.Enqueue(Filter(reply));
             Cooldown.AddCooldown(Username);
         }
