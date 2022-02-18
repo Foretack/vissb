@@ -10,6 +10,8 @@ namespace Core
 {
     public class Core
     {
+        public static DateTime StartupTime = DateTime.Now;
+
         static void Main(string[] args)
         {
             Bot bot = new();
@@ -52,6 +54,7 @@ namespace Core
             client.OnConnected +=  (s, e) =>
             {
                 Console.WriteLine("connected");
+                client.JoinChannel("foretack");
                 PubSub pubSub = new();
                 AskCommand ask = new();
             };
@@ -64,6 +67,10 @@ namespace Core
             string message = Received.ChatMessage.Message;
             string prompt = string.Empty;
 
+            if (Received.ChatMessage.Username == "23tack" && message.StartsWith("NaM"))
+            {
+                client.SendMessage("foretack", $"NaM 154834 .vissb uptime: {(DateTime.Now - Core.StartupTime)}");
+            }
             if (message.ToLower().StartsWith(Bot.Username + " "))
             {
                 prompt = message.Replace(Bot.Username + " ", "");
