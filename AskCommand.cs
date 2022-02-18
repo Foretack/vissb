@@ -61,6 +61,7 @@ namespace Core
             string replyText = response.choices.First().text;
             reply = $"@{Username}, {replyText.Substring((replyText.IndexOf("\n\n") < 0 ? 0 : replyText.IndexOf("\n\n")))}";
             Messages.Enqueue(Filter(reply));
+            if (Username == Bot.Channel) return;
             Cooldown.AddCooldown(Username);
         }
 
