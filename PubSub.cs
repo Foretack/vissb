@@ -28,12 +28,10 @@ namespace Core
             };
             client.OnStreamDown += (s, e) =>
             {
-                Bot.client.SendMessage(Bot.Channel, "billyArrive channel offline");
                 AskCommand.StreamOnline = false;
             };
             client.OnStreamUp += (s, e) =>
             {
-                Bot.client.SendMessage(Bot.Channel, "billyLeave channel online");
                 AskCommand.StreamOnline = true;
             };
 
