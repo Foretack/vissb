@@ -33,8 +33,10 @@ namespace Core
             {
                 prompt = Input,
                 max_tokens = 90,
-                temperature = 0.3f,
-                frequency_penalty = 1f
+                temperature = 0.5f,
+                top_p = 0.3f,
+                frequency_penalty = 0.5f,
+                presence_penalty = 0.0f
             };
 
             string contentAsString = JsonConvert.SerializeObject(body);
@@ -142,7 +144,9 @@ namespace Core
         public string prompt { get; set; }
         public int max_tokens { get; set; }
         public float temperature { get; set; }
+        public float top_p { get; set; }
         public float frequency_penalty { get; set; }
+        public float presence_penalty { get; set; }
     }
 
     class ResponseBody
