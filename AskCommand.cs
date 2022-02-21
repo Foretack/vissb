@@ -34,9 +34,10 @@ namespace Core
                 prompt = Input,
                 max_tokens = 90,
                 temperature = 0.5f,
-                top_p = 0.3f,
+                top_p = 1.0f,
                 frequency_penalty = 0.5f,
-                presence_penalty = 0.0f
+                presence_penalty = 0.0f,
+                stop = new string[] { "You:" }
             };
 
             string contentAsString = JsonConvert.SerializeObject(body);
@@ -147,6 +148,7 @@ namespace Core
         public float top_p { get; set; }
         public float frequency_penalty { get; set; }
         public float presence_penalty { get; set; }
+        public string[] stop { get; set; }
     }
 
     class ResponseBody
