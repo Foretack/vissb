@@ -31,7 +31,7 @@ namespace Core
 
             RequestBody body = new()
             {
-                prompt = $"{Input}\nMarv:",
+                prompt = $"You: {Input}\nMarv:",
                 max_tokens = 90,
                 temperature = 0.5f,
                 top_p = 0.3f,
