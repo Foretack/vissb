@@ -31,13 +31,12 @@ namespace Core
 
             RequestBody body = new()
             {
-                prompt = Input,
+                prompt = $"{Input}\nMarv:",
                 max_tokens = 90,
                 temperature = 0.5f,
-                top_p = 1.0f,
+                top_p = 0.3f,
                 frequency_penalty = 0.5f,
                 presence_penalty = 0.0f,
-                stop = new string[] { "You:" }
             };
 
             string contentAsString = JsonConvert.SerializeObject(body);
