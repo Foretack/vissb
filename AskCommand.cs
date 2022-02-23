@@ -31,7 +31,7 @@ namespace Core
 
             RequestBody body = new()
             {
-                prompt = $"{Username}: {Input}",
+                prompt = $"{Username} asks {Bot.Username}: {Input} \n{Bot.Username}:",
                 max_tokens = 90,
                 temperature = 0.5f,
                 top_p = 0.3f,
