@@ -31,13 +31,13 @@ namespace Core
 
             RequestBody body = new()
             {
-                prompt = $"You: {Input}\nMarv:",
+                prompt = $"{Username}: {Input}\nMarv:",
                 max_tokens = 90,
                 temperature = 0.5f,
                 top_p = 0.3f,
                 frequency_penalty = 0.5f,
                 presence_penalty = 0.0f,
-                stop = new string[] { "You:" }
+                stop = new string[] { "You:", $"{Username}:" }
             };
 
             string contentAsString = JsonConvert.SerializeObject(body);
@@ -62,7 +62,8 @@ namespace Core
             }
 
             string replyText = response.choices.First().text;
-            reply = $"@{Username}, {replyText.Substring((replyText.IndexOf("\n\n") < 0 ? 0 : replyText.IndexOf("\n\n")))}";
+            reply = $"{replyText.Substring((replyText.IndexOf("\n\n") < 0 ? 0 : replyText.IndexOf("\n\n")))}";
+            reply = (reply.ToLower().Contains(Username)) ? reply : $"{Username}, {reply}";
             Messages.Enqueue(Filter(reply));
             if (Username == Bot.Channel) return;
             Cooldown.AddCooldown(Username);
@@ -154,8 +155,6 @@ namespace Core
     class ResponseBody
     {
         public string id { get; set; }
-        [JsonProperty("object")]
-        public string @object { get; set; }
         public int created { get; set; }
         public string model { get; set; }
         public Choice[] choices { get; set; }
