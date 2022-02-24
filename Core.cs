@@ -10,7 +10,8 @@ namespace Core
 {
     public class Core
     {
-        public static DateTime StartupTime = DateTime.Now;
+        public static readonly DateTime StartupTime = DateTime.Now;
+        public static DateTime DownTime = new();
 
         static void Main(string[] args)
         {
@@ -23,11 +24,11 @@ namespace Core
 
     public class Bot
     {
-        public static readonly string Username = "TWITCH_USERNAME";
-        public static readonly string Token = "ACCESS_TOKEN_GOES_HERE";
-        public static readonly string OpenAIToken = "Bearer OPEN_AI_AUTH";
-        public static readonly string Channel = "minusinsanity";
-        public static readonly int ChannelID = 17497365;
+        public const string Username = "TWITCH_USERNAME";
+        public const string Token = "ACCESS_TOKEN";
+        public const string OpenAIToken = "Bearer OPEN_AI_AUTH";
+        public const string Channel = "minusinsanity";
+        public const int ChannelID = 17497365;
 
         public static TwitchClient client;
 
@@ -58,6 +59,24 @@ namespace Core
                 PubSub pubSub = new();
                 AskCommand ask = new();
             };
+            client.OnDisconnected += (s, e) =>
+            {
+                Core.DownTime = DateTime.Now;
+                System.Timers.Timer timer = new();
+                timer.Interval = 3000;
+                timer.AutoReset = true;
+                timer.Enabled = true;
+
+                timer.Elapsed += (s, e) =>
+                {
+                    client.Connect();
+                };
+                client.OnConnected += (s, e) =>
+                {
+                    Console.WriteLine($"Reconnected after {(DateTime.Now - Core.DownTime).Seconds}s");
+                    timer.Stop();
+                };
+            };
 
             client.Connect();
         }
@@ -67,7 +86,7 @@ namespace Core
             string message = Received.ChatMessage.Message;
             string prompt = string.Empty;
 
-            if (Received.ChatMessage.Username == "23tack" && message.StartsWith("NaM"))
+            if (Received.ChatMessage.Username == "streamelements" && message.StartsWith("NaM"))
             {
                 client.SendMessage("foretack", $"NaM 154834 .vissb uptime: {(DateTime.Now - Core.StartupTime)}");
             }
