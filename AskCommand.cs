@@ -54,7 +54,7 @@ namespace Core
             ResponseBody response = JsonConvert.DeserializeObject<ResponseBody>(result) ?? throw new Exception();
             string reply = $"@{Username}, <no response>";
 
-            if (response.choices.Length < 5) 
+            if (response.choices.Length < 2) 
             {
                 Messages.Enqueue(Filter(reply));
                 Cooldown.AddCooldown(Username);
