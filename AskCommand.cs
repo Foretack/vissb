@@ -22,7 +22,7 @@ namespace Core
 
         public static async Task RunCommand(string Username, string Input)
         {
-            if (StreamOnline) { return; }
+            if (StreamOnline || Username.Equals("xbeast20")) { return; }
             if (Cooldown.OnCooldown(Username).Item1) 
             { 
                 Messages.Enqueue($"@{Username}, forsenDonk Wait {Cooldown.OnCooldown(Username).Item2}s"); 
