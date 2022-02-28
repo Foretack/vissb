@@ -86,9 +86,11 @@ namespace Core
             string message = Received.ChatMessage.Message;
             string prompt = string.Empty;
 
-            if (Received.ChatMessage.Username == "streamelements" && message.StartsWith("NaM"))
+            if (Received.ChatMessage.Username == "streamelements" && message.StartsWith("NaM") 
+            || message.Equals("!ping"))
             {
-                client.SendMessage("foretack", $"NaM 154834 .vissb uptime: {(DateTime.Now - Core.StartupTime)}");
+                TimeSpan uptime = DateTime.Now - Core.StartupTime;
+                client.SendMessage(Received.ChatMessage.Channel, $"NaM 154834 .vissb uptime: {uptime.Days}d {uptime.Hours}h {uptime.Minutes}m {uptime.Seconds}s");
             }
             if (message.ToLower().StartsWith(Bot.Username + " "))
             {
