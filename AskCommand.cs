@@ -132,7 +132,7 @@ namespace Core
 
         public static void AddCooldown(string User)
         {
-            CooldownPool.Add(User, DateTimeOffset.Now.ToUnixTimeSeconds());
+            CooldownPool.TryAdd(User, DateTimeOffset.Now.ToUnixTimeSeconds());
         }
 
         public static ValueTuple<bool, int?> OnCooldown(string User)
@@ -145,7 +145,7 @@ namespace Core
             {
                 if (DateTimeOffset.Now.ToUnixTimeSeconds() - lastUsed < 59)
                 {
-                    return (true, (int)(DateTimeOffset.Now.ToUnixTimeSeconds() - lastUsed));
+                    return (true, (int)(60 - DateTimeOffset.Now.ToUnixTimeSeconds() - lastUsed));
                 }
                 CooldownPool.Remove(User);
                 return (false, null);
