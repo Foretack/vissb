@@ -145,7 +145,7 @@ namespace Core
             {
                 if (DateTimeOffset.Now.ToUnixTimeSeconds() - lastUsed < 59)
                 {
-                    return (true, (int)(60 - DateTimeOffset.Now.ToUnixTimeSeconds() - lastUsed));
+                    return (true, (int)(60 - (DateTimeOffset.Now.ToUnixTimeSeconds() - lastUsed)));
                 }
                 CooldownPool.Remove(User);
                 return (false, null);
