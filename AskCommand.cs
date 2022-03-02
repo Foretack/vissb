@@ -50,7 +50,7 @@ namespace Core
                 return; 
             }
 
-            string result = req.Content.ReadAsStringAsync().Result;
+            string result = await req.Content.ReadAsStringAsync();
             ResponseBody response = JsonConvert.DeserializeObject<ResponseBody>(result) ?? throw new Exception();
             string reply = $"@{Username}, <no response>";
 
