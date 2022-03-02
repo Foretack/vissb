@@ -25,7 +25,7 @@ namespace Core
             if (StreamOnline || Username.Equals("xbeast20")) { return; }
             if (Cooldown.OnCooldown(Username).Item1) 
             { 
-                Messages.Enqueue($"@{Username}, forsenDonk Wait {Cooldown.OnCooldown(Username).Item2}s"); 
+                Messages.Enqueue($"@{Username}, ppHop Wait {Cooldown.OnCooldown(Username).Item2}s", 100); 
                 return; 
             }
 
@@ -46,7 +46,7 @@ namespace Core
 
             if (req.StatusCode != HttpStatusCode.OK) 
             {
-                Messages.Enqueue("eror Sadeg");
+                Messages.Enqueue("eror Sadeg", 75);
                 return; 
             }
 
@@ -56,39 +56,57 @@ namespace Core
 
             if (response.choices.First().text.Length < 2) 
             {
-                Messages.Enqueue(Filter(reply));
+                Messages.Enqueue(await Filter(reply), 50);
                 Cooldown.AddCooldown(Username);
                 return; 
             }
 
             string replyText = response.choices.First().text;
             reply = $"{replyText.Substring((replyText.IndexOf("\n\n") < 0 ? 0 : replyText.IndexOf("\n\n")))}";
-            reply = (reply.ToLower().Contains(Username)) ? reply : $"{Username}, {reply}";
-            Messages.Enqueue(Filter(reply));
+            reply = reply.ToLower().Contains(Username) ? reply : $"{Username}, {reply}";
+            Messages.Enqueue(await Filter(reply), 50);
             if (Username == Bot.Channel) return;
             Cooldown.AddCooldown(Username);
         }
 
-        static readonly Regex XD = new(@"(\b(negro|coon)\b)");
-        static readonly Regex NoBruhMoments = new(@"(?:(?:\b(?<![-=\.])|monka)(?:[Nnñ]|[Ii7]V)|η|[\/|]\\[\/|])[\s\.]*?[liI1y!j\/|]+[\s\.]*?(?:[GgbB6934Q🅱qğĜƃ၅5\*][\s\.]*?){2,}(?!arcS|l|Ktlw|ylul|ie217|64|\d? ?times)");
-        static readonly Regex NotTwelve = new(@"(\b[iI][012]\b|\b[1-9]\b|\b1[012]\b|twelve|eleven|ten|nine|eight|seven|six|five|four|three|two|one).*year(s)?.*(old|age)");
-        static readonly Regex NoLinks = new(@"(https:[\\/][\\/])?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&\=]*)");
-        static readonly Regex NoIps = new(@"\b((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.|$)){4}");
+        static readonly Regex[] Filters =
+        {
+            // N words
+            new Regex(@"(?:(?:\b(?<![-=\.])|monka)(?:[Nnñ]|[Ii7]V)|η|[\/|]\\[\/|])[\s\.]*?[liI1y!j\/|]+[\s\.]*?(?:[GgbB6934Q🅱qğĜƃ၅5\*][\s\.]*?){2,}(?!arcS|l|Ktlw|ylul|ie217|64|\d? ?times)"),
+            // Age TOS
+            new Regex(@"(\b[iI][012]\b|\b[1-9]\b|\b1[012]\b|twelve|eleven|ten|nine|eight|seven|six|five|four|three|two|one).*year(s)?.*(old|age)"),
+            // Links
+            new Regex(@"(https:[\\/][\\/])?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&\=]*)"),
+            // (Valid) IP addresses
+            new Regex(@"\b((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.|$)){4}"),
+            // More TOS hunting
+            new Regex(@"(\b(negro|coon)\b)")
+        };
 
-        private static string Filter(string Input)
+        private static async Task<string> Filter(string Input)
         {
             string output = Input;
-
-            if (NoIps.Match(output.Remove(output.Length - 1)).Success) output = Input.Replace(NoIps.Match(Input).Value, " BigTrouble ");
-            if (NoBruhMoments.Match(output).Success) output = Input.Replace(NoBruhMoments.Match(Input).Value, " Uhmgi ");
-            if (NoLinks.Match(output).Success) output = Input.Replace(NoLinks.Match(output).Value, " MODS [LINK] ");
-            if (NotTwelve.Match(output).Success) output = Input.Replace(NotTwelve.Match(Input).Value, " YOURM0M ");
-            if (output.Length > 495) output = output.Substring(0, 460) + "... (too long)";
-
+            await Task.Run(() =>
+            {
+                // Do this first to reduce work on regexes
+                if (output.Length > 450) output = output.Substring(0, 450) + "... (too long)";
+                foreach (Regex regex in Filters)
+                {
+                    if (regex.IsMatch(output) && regex.Matches(output).Count == 1) output = output.Replace(regex.Match(output).Value, " [Filtered] ");
+                    // .Replace will not work on unique matches (e.g multiple IP addresses in the message). Hence the else if statement
+                    else if (regex.IsMatch(output) && regex.Matches(output).Count > 1)
+                    {
+                        foreach (Match match in regex.Matches(output))
+                        {
+                            output = output.Replace(match.Value, " [Filtered] ");
+                        }
+                    }
+                }
+            });
             return output;
         }
 
-        private static Queue<string> Messages = new();
+        private static PriorityQueue<string, int> Messages = new();
 
         private static void HandleMessageQueue()
         {
