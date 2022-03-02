@@ -128,30 +128,27 @@ namespace Core
 
     public class Cooldown
     {
-        public static List<ValueTuple<string, long>> CooldownPool = new();
+        public static Dictionary<string, long> CooldownPool = new();
 
         public static void AddCooldown(string User)
         {
-            CooldownPool.Add((User, DateTimeOffset.Now.ToUnixTimeSeconds()));
+            CooldownPool.Add(User, DateTimeOffset.Now.ToUnixTimeSeconds());
         }
 
         public static ValueTuple<bool, int?> OnCooldown(string User)
         {
             if (CooldownPool.Count == 0) return (false, null);
 
-            foreach (var cdt in CooldownPool)
+            long lastUsed = 0;
+            bool s = CooldownPool.TryGetValue(User, out lastUsed);
+            if (s)
             {
-                string name = cdt.Item1;
-                long lastUsed = cdt.Item2;
-
-                if (name == User)
+                if (DateTimeOffset.Now.ToUnixTimeSeconds() - lastUsed < 59)
                 {
-                    if (DateTimeOffset.Now.ToUnixTimeSeconds() - lastUsed < 59)
-                    {
-                        return (true, (int)(60 - (DateTimeOffset.Now.ToUnixTimeSeconds() - lastUsed)));
-                    }
-                    else { CooldownPool.Remove(cdt); return (false, null); }
+                    return (true, (int)(DateTimeOffset.Now.ToUnixTimeSeconds() - lastUsed));
                 }
+                CooldownPool.Remove(User);
+                return (false, null);
             }
 
             return (false, null);
