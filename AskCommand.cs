@@ -140,32 +140,24 @@ namespace Core
         }
     }
 
-#pragma warning disable CS8618
-
     class RequestBody
     {
-        public string prompt { get; set; }
+        public string? prompt { get; set; }
         public int max_tokens { get; set; }
         public float temperature { get; set; }
         public float top_p { get; set; }
         public float frequency_penalty { get; set; }
         public float presence_penalty { get; set; }
-        public string[] stop { get; set; }
+        public string[] stop { get; set; } = default!;
     }
 
     class ResponseBody
     {
-        public string id { get; set; }
-        public int created { get; set; }
-        public string model { get; set; }
-        public Choice[] choices { get; set; }
+        public Choice[] choices { get; set; } = default!;
 
         public class Choice
         {
-            public string text { get; set; }
-            public int index { get; set; }
-            public int? logprobs { get; set; }
-            public string? finish_reason { get; set; }
+            public string text { get; set; } = default!;
         }
     }
 }
