@@ -37,7 +37,7 @@ namespace Core
                 top_p = 0.3f,
                 frequency_penalty = 0.5f,
                 presence_penalty = 0.0f,
-                stop = new string[] { "You:", $"{Username}:" }
+                stop = new string[] { $"{Username}:" }
             };
 
             string contentAsString = JsonConvert.SerializeObject(body);
@@ -65,6 +65,7 @@ namespace Core
             reply = $"{replyText.Substring((replyText.IndexOf("\n\n") < 0 ? 0 : replyText.IndexOf("\n\n")))}";
             reply = reply.ToLower().Contains(Username) ? reply : $"{Username}, {reply}";
             Messages.Enqueue(await Filter(reply), 50);
+            // Don't add a cooldown to Broadcaster.
             if (Username == Bot.Channel) return;
             Cooldown.AddCooldown(Username);
         }
@@ -80,7 +81,7 @@ namespace Core
             // (Valid) IP addresses
             new Regex(@"\b((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.|$)){4}"),
             // More TOS hunting
-            new Regex(@"(\b(negro|coon)\b)")
+            new Regex(@"\b(negro|coon)\b")
         };
 
         private static async Task<string> Filter(string Input)
@@ -93,12 +94,12 @@ namespace Core
                 foreach (Regex regex in Filters)
                 {
                     if (regex.IsMatch(output) && regex.Matches(output).Count == 1) output = output.Replace(regex.Match(output).Value, " [Filtered] ");
-                    // .Replace will not work on unique matches (e.g multiple IP addresses in the message). Hence the else if statement
+                    // .Replace will not work on unique matches (e.g multiple IP addresses in the message). Hence the else if statement.
                     else if (regex.IsMatch(output) && regex.Matches(output).Count > 1)
                     {
                         foreach (Match match in regex.Matches(output))
                         {
-                            output = output.Replace(match.Value, " [Filtered] ");
+                            output = output.Replace(match.Value, " [Filtered] "); // Nesting FeelsGoodMan
                         }
                     }
                 }
@@ -106,6 +107,7 @@ namespace Core
             return output;
         }
 
+        // Lower int value = Higher priority
         private static PriorityQueue<string, int> Messages = new();
 
         private static void HandleMessageQueue()
@@ -132,15 +134,19 @@ namespace Core
 
         public static void AddCooldown(string User)
         {
+            // .Add shouldn't cause an exception but it does
             CooldownPool.TryAdd(User, DateTimeOffset.Now.ToUnixTimeSeconds());
         }
 
+        // Checks if the user is on cooldown. Returns (false, null) if not.
+        // Else returns (true, cooldown in seconds)
         public static ValueTuple<bool, int?> OnCooldown(string User)
         {
             if (CooldownPool.Count == 0) return (false, null);
 
             long lastUsed = 0;
             bool s = CooldownPool.TryGetValue(User, out lastUsed);
+
             if (s)
             {
                 if (DateTimeOffset.Now.ToUnixTimeSeconds() - lastUsed < 59)
@@ -150,14 +156,13 @@ namespace Core
                 CooldownPool.Remove(User);
                 return (false, null);
             }
-
             return (false, null);
         }
     }
 
     class RequestBody
     {
-        public string? prompt { get; set; }
+        public string prompt { get; set; } = default!;
         public int max_tokens { get; set; }
         public float temperature { get; set; }
         public float top_p { get; set; }
