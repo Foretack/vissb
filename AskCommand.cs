@@ -51,7 +51,7 @@ namespace Core
             }
 
             string result = await req.Content.ReadAsStringAsync();
-            ResponseBody response = JsonConvert.DeserializeObject<ResponseBody>(result) ?? throw new Exception();
+            ResponseBody response = JsonConvert.DeserializeObject<ResponseBody>(result)!;
             string reply = $"@{Username}, <no response>";
 
             if (response.choices.First().text.Length < 2) 
