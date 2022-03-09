@@ -14,6 +14,7 @@ namespace Core
         public static bool StreamOnline = false;
         public static HttpClient Requests = new();
         private static readonly string APILink = "https://api.openai.com/v1/engines/text-davinci-001/completions";
+        private static readonly string[] BlacklistedUsers = { "titlechange_bot", "supibot", "streamelements" };
 
         public AskCommand()
         {
@@ -22,7 +23,7 @@ namespace Core
 
         public static async Task RunCommand(string Username, string Input)
         {
-            if (StreamOnline || Username.Equals("xbeast20")) { return; }
+            if (StreamOnline || BlacklistedUsers.Contains(Username)) return;
             if (Cooldown.OnCooldown(Username).Item1) 
             { 
                 Messages.Enqueue($"@{Username}, ppHop Wait {Cooldown.OnCooldown(Username).Item2}s", 100); 
