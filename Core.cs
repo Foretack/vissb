@@ -4,8 +4,6 @@ using TwitchLib.Client.Models;
 using TwitchLib.Communication.Clients;
 using TwitchLib.Communication.Models;
 
-#pragma warning disable CS8618
-
 namespace Core
 {
     public class Core
@@ -30,7 +28,7 @@ namespace Core
         public const string Channel = "minusinsanity";
         public const int ChannelID = 17497365;
 
-        public static TwitchClient client;
+        public static TwitchClient client = new();
 
         public Bot()
         {
@@ -61,9 +59,10 @@ namespace Core
             };
             client.OnDisconnected += (s, e) =>
             {
+                Disconnected = true;
                 Core.DownTime = DateTime.Now;
                 System.Timers.Timer timer = new();
-                timer.Interval = 3000;
+                timer.Interval = 5000;
                 timer.AutoReset = true;
                 timer.Enabled = true;
 
@@ -71,38 +70,45 @@ namespace Core
                 {
                     client.Connect();
                 };
-                client.OnConnected += (s, e) =>
+                client.OnConnected += async (s, e) =>
                 {
-                    Console.WriteLine($"Reconnected after {(DateTime.Now - Core.DownTime).Seconds}s");
-                    timer.Stop();
+                    if (Disconnected)
+                    {
+                        Console.WriteLine($"Reconnected after {(int)(DateTime.Now - Core.DownTime).TotalSeconds}s");
+                        client.JoinChannel(Channel);
+                        await PubSub.AttemptReconnect();
+                        timer.Stop(); 
+                        Disconnected = false;
+                    }
                 };
             };
 
             client.Connect();
         }
 
+        private static bool Disconnected = false;
+
         public async Task HandleMessage(TwitchLib.Client.Events.OnMessageReceivedArgs Received)
         {
             string message = Received.ChatMessage.Message;
             string prompt = string.Empty;
 
-            if (Received.ChatMessage.Username == "streamelements" && message.StartsWith("NaM") 
-            || message.Equals("!ping"))
+            if (message.StartsWith("!ping"))
             {
                 TimeSpan uptime = DateTime.Now - Core.StartupTime;
-                client.SendMessage(Received.ChatMessage.Channel, $"NaM 154834 .vissb uptime: {uptime.Days}d {uptime.Hours}h {uptime.Minutes}m {uptime.Seconds}s");
+                client.SendMessage(Received.ChatMessage.Channel, $":) uptime: {uptime.Days}d {uptime.Hours}h {uptime.Minutes}m {uptime.Seconds}s");
             }
-            if (message.ToLower().StartsWith(Bot.Username + " "))
+            if (message.ToLower().StartsWith(Username + " "))
             {
-                prompt = message.Replace(Bot.Username + " ", "");
+                prompt = message.Replace(Username + " ", "");
 
                 if (string.IsNullOrWhiteSpace(prompt) || string.IsNullOrEmpty(prompt)) return;
 
                 await AskCommand.RunCommand(Received.ChatMessage.Username, prompt);
             }
-            else if (message.ToLower().EndsWith(" " + Bot.Username))
+            else if (message.ToLower().EndsWith(" " + Username))
             {
-                prompt = message.Replace(" " + Bot.Username, "");
+                prompt = message.Replace(" " + Username, "");
 
                 if (string.IsNullOrWhiteSpace(prompt) || string.IsNullOrEmpty(prompt)) return;
 

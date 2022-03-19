@@ -6,12 +6,19 @@ namespace Core
 {
     public class PubSub
     {
-        private TwitchPubSub? client;
+        public static TwitchPubSub client = new();
 
         public PubSub()
         {
             Run();
         }
+        public static async Task AttemptReconnect()
+        {
+            client.Disconnect();
+            await Task.Delay(5000);
+            client.Connect();
+        }
+
 
         private void Run()
         {
@@ -20,6 +27,7 @@ namespace Core
             client.OnPubSubServiceConnected += (s, e) =>
             {
                 client.SendTopics();
+                Console.WriteLine("PubSub connected");
             };
             client.OnListenResponse += (s, e) =>
             {
