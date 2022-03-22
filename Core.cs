@@ -8,12 +8,13 @@ namespace Core
 {
     public class Core
     {
-        public static readonly DateTime StartupTime = DateTime.Now;
+        public static DateTime StartupTime = new();
         public static DateTime DownTime = new();
 
         static void Main(string[] args)
         {
             Bot bot = new();
+            StartupTime = DateTime.Now;
             AskCommand.Requests.DefaultRequestHeaders.Add("Authorization", Bot.OpenAIToken);
             Console.ReadLine();
         }
@@ -22,6 +23,18 @@ namespace Core
 
     public class Bot
     {
+        /*
+         * IMPORTANT: Your token must have the required scopes to see when a channel goes live.
+         * If your token does not have the required scopes, it will always think the channel is 
+         * offline and continue to reply.
+         * 
+         * You can generate a token with the required scopes here:
+         * https://twitchtokengenerator.com/
+         * 
+         * choose custom scope token on the pop up, then scroll down until you see the 
+         * [Select All] button. Press the button, then generate your token (from the 
+         * [Generate Token] button on the right side of the [Select All] button).
+         */
         public const string Username = "TWITCH_USERNAME";
         public const string Token = "ACCESS_TOKEN";
         public const string OpenAIToken = "Bearer OPEN_AI_AUTH";
