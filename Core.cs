@@ -61,7 +61,7 @@ namespace Core
             };
             client.OnMessageReceived += async (s, e) =>
             {
-                await HandleMessage(e);
+                await HandleMessage(e.ChatMessage);
             };
             client.OnConnected +=  (s, e) =>
             {
@@ -107,31 +107,30 @@ namespace Core
         }
 
 
-        public async Task HandleMessage(TwitchLib.Client.Events.OnMessageReceivedArgs Received)
+        public async Task HandleMessage(ChatMessage Received)
         {
-            string message = Received.ChatMessage.Message;
             string prompt;
 
-            if (message.StartsWith("!ping"))
+            if (Received.Message.StartsWith("!ping"))
             {
                 TimeSpan uptime = DateTime.Now - Core.StartupTime;
-                client.SendMessage(Received.ChatMessage.Channel, $":) uptime: {uptime.Days}d {uptime.Hours}h {uptime.Minutes}m {uptime.Seconds}s");
+                client.SendMessage(Received.Channel, $":) uptime: {uptime.Days}d {uptime.Hours}h {uptime.Minutes}m {uptime.Seconds}s");
             }
-            if (message.ToLower().StartsWith(Username + " "))
+            if (Received.Message.ToLower().StartsWith(Username + " "))
             {
-                prompt = message.Replace(Username + " ", "");
+                prompt = Received.Message.Replace(Username + " ", "");
 
                 if (string.IsNullOrWhiteSpace(prompt) || string.IsNullOrEmpty(prompt)) return;
 
-                await AskCommand.RunCommand(Received.ChatMessage.Username, prompt);
+                await AskCommand.RunCommand(Received.Username, prompt);
             }
-            else if (message.ToLower().EndsWith(" " + Username))
+            else if (Received.Message.ToLower().EndsWith(" " + Username))
             {
-                prompt = message.Replace(" " + Username, "");
+                prompt = Received.Message.Replace(" " + Username, "");
 
                 if (string.IsNullOrWhiteSpace(prompt) || string.IsNullOrEmpty(prompt)) return;
 
-                await AskCommand.RunCommand(Received.ChatMessage.Username, prompt);
+                await AskCommand.RunCommand(Received.Username, prompt);
             }
         }
 
