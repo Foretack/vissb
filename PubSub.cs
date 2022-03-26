@@ -6,7 +6,9 @@ namespace Core
 {
     public class PubSub
     {
-        public static TwitchPubSub client = new();
+        public static TwitchPubSub Client = new();
+
+        private static short Status = 0;
 
         public PubSub()
         {
@@ -14,38 +16,59 @@ namespace Core
         }
         public static async Task AttemptReconnect()
         {
-            client.Disconnect();
+            Client.Disconnect();
+            Console.WriteLine($"[{DateTime.Now}] Reconnecting PubSub...");
             await Task.Delay(5000);
-            client.Connect();
+            Client.Connect();
         }
 
+        public static async Task<short> CheckStreamStatus()
+        {
+            Status = 0;
+            Console.WriteLine($"[{DateTime.Now}] Checking if the stream is currently on...");
+            await Task.Delay(10000);
+
+            return Status;
+        }
 
         private void Run()
         {
-            client = new TwitchPubSub();
+            Client = new TwitchPubSub();
 
-            client.OnPubSubServiceConnected += (s, e) =>
+            Client.OnPubSubServiceConnected += (s, e) =>
             {
-                client.SendTopics();
-                Console.WriteLine("PubSub connected");
+                Client.SendTopics();
+                Console.WriteLine($"[{DateTime.Now}] PubSub connected");
             };
-            client.OnListenResponse += (s, e) =>
+            Client.OnListenResponse += (s, e) =>
             {
                 if (!e.Successful) throw new Exception($"Failed to listen! Response: {e.Response}");
                 else Console.WriteLine($"listening to {e.Topic}");
             };
-            client.OnStreamDown += (s, e) =>
+            Client.OnStreamDown += (s, e) =>
             {
                 AskCommand.StreamOnline = false;
+
+                Console.ForegroundColor = ConsoleColor.DarkGreen;
+                Console.WriteLine($"[{DateTime.Now}] --- Stream offline, replies enabled ---");
+                Console.ForegroundColor = ConsoleColor.White;
             };
-            client.OnStreamUp += (s, e) =>
+            Client.OnStreamUp += (s, e) =>
             {
                 AskCommand.StreamOnline = true;
+
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"[{DateTime.Now}] --- Stream online, replies disabled ---");
+                Console.ForegroundColor = ConsoleColor.White;
+            };
+            Client.OnViewCount += (s, e) =>
+            {
+                Status += 1;
             };
 
-            client.ListenToVideoPlayback(Bot.ChannelID.ToString());
+            Client.ListenToVideoPlayback(Bot.ChannelID.ToString());
 
-            client.Connect();
+            Client.Connect();
         }
     }
 }

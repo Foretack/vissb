@@ -67,6 +67,7 @@ namespace Core
             {
                 Console.WriteLine("connected");
                 client.JoinChannel("foretack");
+
                 PubSub pubSub = new();
                 AskCommand ask = new();
             };
@@ -74,6 +75,11 @@ namespace Core
             {
                 Disconnected = true;
                 Core.DownTime = DateTime.Now;
+
+                Console.ForegroundColor = ConsoleColor.Magenta;
+                Console.WriteLine($"[{DateTime.Now}] --- Disconnected");
+                Console.ForegroundColor = ConsoleColor.White;
+
                 System.Timers.Timer timer = new();
                 timer.Interval = 5000;
                 timer.AutoReset = true;
@@ -87,11 +93,12 @@ namespace Core
                 {
                     if (Disconnected)
                     {
+                        Console.ForegroundColor = ConsoleColor.Green;
                         Console.WriteLine($"Reconnected after {(int)(DateTime.Now - Core.DownTime).TotalSeconds}s");
-                        client.JoinChannel(Channel);
-                        await PubSub.AttemptReconnect();
+                        Console.ForegroundColor = ConsoleColor.White;
+
+                        await ReconnectShit();
                         timer.Stop(); 
-                        Disconnected = false;
                     }
                 };
             };
@@ -99,12 +106,11 @@ namespace Core
             client.Connect();
         }
 
-        private static bool Disconnected = false;
 
         public async Task HandleMessage(TwitchLib.Client.Events.OnMessageReceivedArgs Received)
         {
             string message = Received.ChatMessage.Message;
-            string prompt = string.Empty;
+            string prompt;
 
             if (message.StartsWith("!ping"))
             {
@@ -126,6 +132,27 @@ namespace Core
                 if (string.IsNullOrWhiteSpace(prompt) || string.IsNullOrEmpty(prompt)) return;
 
                 await AskCommand.RunCommand(Received.ChatMessage.Username, prompt);
+            }
+        }
+
+        private static bool Disconnected = false;
+        private protected static async Task ReconnectShit()
+        {
+            Disconnected = false;
+            client.JoinChannel(Channel);
+            await PubSub.AttemptReconnect();
+            short updates = await PubSub.CheckStreamStatus();
+            Console.WriteLine($"{updates} viewcount updates");
+
+            if (updates == 0)
+            {
+                Console.WriteLine($"[{DateTime.Now}] The stream is currently offline, resuming replies. ");
+                AskCommand.StreamOnline = false;
+            }
+            else
+            {
+                Console.WriteLine($"[{DateTime.Now}] The stream is currently online, replies disabled. ");
+                AskCommand.StreamOnline = true;
             }
         }
     }
