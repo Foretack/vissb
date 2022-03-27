@@ -145,18 +145,16 @@ namespace Core
         {
             if (CooldownPool.Count == 0) return (false, null);
 
-            long lastUsed = 0;
-            bool s = CooldownPool.TryGetValue(User, out lastUsed);
+            bool s = CooldownPool.TryGetValue(User, out long lastUsed);
 
-            if (s)
+            if (!s) return (false, null);
+            if (DateTimeOffset.Now.ToUnixTimeSeconds() - lastUsed < 59)
             {
-                if (DateTimeOffset.Now.ToUnixTimeSeconds() - lastUsed < 59)
-                {
-                    return (true, (int)(60 - (DateTimeOffset.Now.ToUnixTimeSeconds() - lastUsed)));
-                }
-                CooldownPool.Remove(User);
-                return (false, null);
+                return (true, (int)(60 - (DateTimeOffset.Now.ToUnixTimeSeconds() - lastUsed)));
             }
+
+            CooldownPool.Remove(User);
+
             return (false, null);
         }
     }

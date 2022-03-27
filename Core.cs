@@ -57,19 +57,34 @@ namespace Core
 
             client.OnJoinedChannel += (s, e) =>
             {
-                Console.WriteLine($"Connected to {e.Channel}");
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"[{DateTime.Now}] Connected to {e.Channel}");
             };
             client.OnMessageReceived += async (s, e) =>
             {
                 await HandleMessage(e.ChatMessage);
             };
-            client.OnConnected +=  (s, e) =>
+            client.OnConnected +=  async (s, e) =>
             {
-                Console.WriteLine("connected");
-                client.JoinChannel("foretack");
+                Console.ForegroundColor = ConsoleColor.Magenta;
+                Console.WriteLine($"[{DateTime.Now}] --- Connected");
 
                 PubSub pubSub = new();
                 AskCommand ask = new();
+
+                short updates = await PubSub.CheckStreamStatus();
+                Console.WriteLine($"{updates} viewcount updates");
+
+                if (updates == 0)
+                {
+                    Console.WriteLine($"[{DateTime.Now}] The stream is currently offline, resuming replies. ");
+                    AskCommand.StreamOnline = false;
+                }
+                else
+                {
+                    Console.WriteLine($"[{DateTime.Now}] The stream is currently online, replies disabled. ");
+                    AskCommand.StreamOnline = true;
+                }
             };
             client.OnDisconnected += (s, e) =>
             {
@@ -78,7 +93,6 @@ namespace Core
 
                 Console.ForegroundColor = ConsoleColor.Magenta;
                 Console.WriteLine($"[{DateTime.Now}] --- Disconnected");
-                Console.ForegroundColor = ConsoleColor.White;
 
                 System.Timers.Timer timer = new();
                 timer.Interval = 5000;
@@ -95,7 +109,6 @@ namespace Core
                     {
                         Console.ForegroundColor = ConsoleColor.Green;
                         Console.WriteLine($"Reconnected after {(int)(DateTime.Now - Core.DownTime).TotalSeconds}s");
-                        Console.ForegroundColor = ConsoleColor.White;
 
                         await ReconnectShit();
                         timer.Stop(); 
@@ -139,7 +152,7 @@ namespace Core
         {
             Disconnected = false;
             client.JoinChannel(Channel);
-            await PubSub.AttemptReconnect();
+            PubSub.AttemptReconnect().Wait();
             short updates = await PubSub.CheckStreamStatus();
             Console.WriteLine($"{updates} viewcount updates");
 

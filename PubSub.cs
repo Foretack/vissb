@@ -17,6 +17,7 @@ namespace Core
         public static async Task AttemptReconnect()
         {
             Client.Disconnect();
+            Console.ForegroundColor = ConsoleColor.DarkYellow;
             Console.WriteLine($"[{DateTime.Now}] Reconnecting PubSub...");
             await Task.Delay(5000);
             Client.Connect();
@@ -25,6 +26,7 @@ namespace Core
         public static async Task<short> CheckStreamStatus()
         {
             Status = 0;
+            Console.ForegroundColor = ConsoleColor.DarkYellow;
             Console.WriteLine($"[{DateTime.Now}] Checking if the stream is currently on...");
             await Task.Delay(10000);
 
@@ -38,20 +40,22 @@ namespace Core
             Client.OnPubSubServiceConnected += (s, e) =>
             {
                 Client.SendTopics();
+                Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine($"[{DateTime.Now}] PubSub connected");
             };
             Client.OnListenResponse += (s, e) =>
             {
+                Console.ForegroundColor = ConsoleColor.Yellow;
                 if (!e.Successful) throw new Exception($"Failed to listen! Response: {e.Response}");
                 else Console.WriteLine($"listening to {e.Topic}");
             };
             Client.OnStreamDown += (s, e) =>
             {
                 AskCommand.StreamOnline = false;
+                Status = 0;
 
                 Console.ForegroundColor = ConsoleColor.DarkGreen;
                 Console.WriteLine($"[{DateTime.Now}] --- Stream offline, replies enabled ---");
-                Console.ForegroundColor = ConsoleColor.White;
             };
             Client.OnStreamUp += (s, e) =>
             {
@@ -59,7 +63,6 @@ namespace Core
 
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"[{DateTime.Now}] --- Stream online, replies disabled ---");
-                Console.ForegroundColor = ConsoleColor.White;
             };
             Client.OnViewCount += (s, e) =>
             {
