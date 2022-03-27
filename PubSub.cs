@@ -47,7 +47,7 @@ namespace Core
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
                 if (!e.Successful) throw new Exception($"Failed to listen! Response: {e.Response}");
-                else Console.WriteLine($"listening to {e.Topic}");
+                else Console.WriteLine($"[{DateTime.Now}] listening to {e.Topic}");
             };
             Client.OnStreamDown += (s, e) =>
             {

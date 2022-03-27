@@ -66,24 +66,27 @@ namespace Core
             };
             client.OnConnected +=  async (s, e) =>
             {
-                Console.ForegroundColor = ConsoleColor.Magenta;
-                Console.WriteLine($"[{DateTime.Now}] --- Connected");
-
-                PubSub pubSub = new();
-                AskCommand ask = new();
-
-                short updates = await PubSub.CheckStreamStatus();
-                Console.WriteLine($"{updates} viewcount updates");
-
-                if (updates == 0)
+                if (!Disconnected)
                 {
-                    Console.WriteLine($"[{DateTime.Now}] The stream is currently offline, resuming replies. ");
-                    AskCommand.StreamOnline = false;
-                }
-                else
-                {
-                    Console.WriteLine($"[{DateTime.Now}] The stream is currently online, replies disabled. ");
-                    AskCommand.StreamOnline = true;
+                    Console.ForegroundColor = ConsoleColor.Magenta;
+                    Console.WriteLine($"[{DateTime.Now}] --- Connected");
+
+                    PubSub pubSub = new();
+                    AskCommand ask = new();
+
+                    short updates = await PubSub.CheckStreamStatus();
+                    Console.WriteLine($"{updates} viewcount updates");
+
+                    if (updates == 0)
+                    {
+                        Console.WriteLine($"[{DateTime.Now}] The stream is currently offline, resuming replies. ");
+                        AskCommand.StreamOnline = false;
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[{DateTime.Now}] The stream is currently online, replies disabled. ");
+                        AskCommand.StreamOnline = true;
+                    } 
                 }
             };
             client.OnDisconnected += (s, e) =>
