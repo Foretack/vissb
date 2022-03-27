@@ -28,7 +28,7 @@ namespace Core
             Status = 0;
             Console.ForegroundColor = ConsoleColor.DarkYellow;
             Console.WriteLine($"[{DateTime.Now}] Checking if the stream is currently on...");
-            await Task.Delay(10000);
+            await Task.Delay(30000);
 
             return Status;
         }
