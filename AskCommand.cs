@@ -13,7 +13,7 @@ namespace Core
     {
         public static bool StreamOnline = false;
         public static HttpClient Requests = new();
-        private static readonly string APILink = "https://api.openai.com/v1/engines/curie/completions";
+        private static readonly string APILink = "https://api.openai.com/v1/engines/text-davinci-001/completions";
         private static readonly string[] BlacklistedUsers = { "titlechange_bot", "supibot", "streamelements" };
 
         public AskCommand()
