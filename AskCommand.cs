@@ -29,7 +29,6 @@ namespace Core
                 top_p = 0.3f,
                 frequency_penalty = 0.5f,
                 presence_penalty = 0.0f,
-                stop = new string[] { $"{Username}:", $"{Config.Username}:" }
             };
 
             string contentAsString = JsonConvert.SerializeObject(body);
@@ -46,7 +45,7 @@ namespace Core
             ResponseBody response = JsonConvert.DeserializeObject<ResponseBody>(result)!;
             string reply = $"@{Username}, <no response>";
 
-            if (response.choices.First().text.Length < 2)
+            if (response.choices.First().text.Length < 3)
             {
                 Messages.Enqueue(await Filter(reply), 50);
                 Cooldown.AddCooldown(Username);
@@ -72,13 +71,13 @@ namespace Core
 
             if (!s)
             {
-                newPrompt = $"{username} asks {Config.Username}: {prompt} \n{Config.Username}:";
+                newPrompt = $"{username}: {prompt} \n{Config.Username}: ";
                 return newPrompt;
             }
 
             string lastQuestion = lastQuestionAndReply![0];
             string lastAnswer = lastQuestionAndReply![1];
-            newPrompt = $"{username}: {lastQuestion}\n{Config.Username}: {lastAnswer}\n{username} asks {Config.Username}: {prompt} \n{Config.Username}: ";
+            newPrompt = $"{username}: {lastQuestion}\n{Config.Username}: {lastAnswer}\n{username}: {prompt} \n{Config.Username}: ";
 
             return newPrompt;
         }
