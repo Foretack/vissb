@@ -1,21 +1,21 @@
-﻿using System.Text.RegularExpressions;
-using TwitchLib.Client;
+﻿using TwitchLib.Client;
 using TwitchLib.Client.Models;
 using TwitchLib.Communication.Clients;
 using TwitchLib.Communication.Models;
 
 namespace Core
 {
-    public class Core
+    public static class Core
     {
-        public static DateTime StartupTime = new();
-        public static DateTime DownTime = new();
+        public static DateTime StartupTime { get; private set; } = new();
+        public static DateTime DownTime { get; set; } = new();
 
         static void Main(string[] args)
         {
             Bot bot = new();
+            bot.Run();
             StartupTime = DateTime.Now;
-            AskCommand.Requests.DefaultRequestHeaders.Add("Authorization", Bot.OpenAIToken);
+            AskCommand.Requests.DefaultRequestHeaders.Add("Authorization", Config.OpenAIToken);
             Console.ReadLine();
         }
 
@@ -23,29 +23,11 @@ namespace Core
 
     public class Bot
     {
-        /*
-         * IMPORTANT: Your token must have the required scopes to see when a channel goes live.
-         * If your token does not have the required scopes, it will always think the channel is 
-         * offline and continue to reply.
-         * 
-         * You can generate a token with the required scopes here:
-         * https://twitchtokengenerator.com/
-         * 
-         * choose custom scope token on the pop up, then scroll down until you see the 
-         * [Select All] button. Press the button, then generate your token (from the 
-         * [Generate Token] button on the right side of the [Select All] button).
-         */
-        public const string Username = "TWITCH_USERNAME";
-        public const string Token = "ACCESS_TOKEN";
-        public const string OpenAIToken = "Bearer OPEN_AI_AUTH";
-        public const string Channel = "minusinsanity";
-        public const int ChannelID = 17497365;
+        public static TwitchClient client { get; private set; } = new();
 
-        public static TwitchClient client = new();
-
-        public Bot()
+        public void Run()
         {
-            ConnectionCredentials credentials = new ConnectionCredentials(Username, Token);
+            ConnectionCredentials credentials = new ConnectionCredentials(Config.Username, Config.Token);
             var clientOptions = new ClientOptions
             {
                 MessagesAllowedInPeriod = 750,
@@ -53,7 +35,7 @@ namespace Core
             };
             WebSocketClient customClient = new WebSocketClient(clientOptions);
             client = new TwitchClient(customClient);
-            client.Initialize(credentials, Channel);
+            client.Initialize(credentials, Config.Channel);
 
             client.OnJoinedChannel += (s, e) =>
             {
@@ -64,31 +46,32 @@ namespace Core
             {
                 await HandleMessage(e.ChatMessage);
             };
-            client.OnConnected +=  async (s, e) =>
-            {
-                if (!Disconnected)
-                {
-                    Console.ForegroundColor = ConsoleColor.Magenta;
-                    Console.WriteLine($"[{DateTime.Now}] --- Connected");
+            client.OnConnected += async (s, e) =>
+           {
+               if (!Disconnected)
+               {
+                   Console.ForegroundColor = ConsoleColor.Magenta;
+                   Console.WriteLine($"[{DateTime.Now}] --- Connected");
 
-                    PubSub pubSub = new();
-                    AskCommand ask = new();
+                   PubSub pubSub = new();
+                   pubSub.Run();
+                   AskCommand.HandleMessageQueue();
 
-                    short updates = await PubSub.CheckStreamStatus();
-                    Console.WriteLine($"{updates} viewcount updates");
+                   short updates = await PubSub.CheckStreamStatus();
+                   Console.WriteLine($"{updates} viewcount updates");
 
-                    if (updates == 0)
-                    {
-                        Console.WriteLine($"[{DateTime.Now}] The stream is currently offline, resuming replies. ");
-                        AskCommand.StreamOnline = false;
-                    }
-                    else
-                    {
-                        Console.WriteLine($"[{DateTime.Now}] The stream is currently online, replies disabled. ");
-                        AskCommand.StreamOnline = true;
-                    } 
-                }
-            };
+                   if (updates == 0)
+                   {
+                       Console.WriteLine($"[{DateTime.Now}] The stream is currently offline, resuming replies. ");
+                       AskCommand.StreamOnline = false;
+                   }
+                   else
+                   {
+                       Console.WriteLine($"[{DateTime.Now}] The stream is currently online, replies disabled. ");
+                       AskCommand.StreamOnline = true;
+                   }
+               }
+           };
             client.OnDisconnected += (s, e) =>
             {
                 Disconnected = true;
@@ -114,7 +97,8 @@ namespace Core
                         Console.WriteLine($"Reconnected after {(int)(DateTime.Now - Core.DownTime).TotalSeconds}s");
 
                         await ReconnectShit();
-                        timer.Stop(); 
+                        timer.Stop();
+                        Disconnected = false;
                     }
                 };
             };
@@ -122,6 +106,7 @@ namespace Core
             client.Connect();
         }
 
+        private bool Disconnected = false;
 
         public async Task HandleMessage(ChatMessage Received)
         {
@@ -132,29 +117,28 @@ namespace Core
                 TimeSpan uptime = DateTime.Now - Core.StartupTime;
                 client.SendMessage(Received.Channel, $":) uptime: {uptime.Days}d {uptime.Hours}h {uptime.Minutes}m {uptime.Seconds}s");
             }
-            if (Received.Message.ToLower().StartsWith(Username + " "))
+            if (Received.Message.ToLower().StartsWith(Config.Username + " "))
             {
-                prompt = Received.Message.Replace(Username + " ", "");
+                prompt = Received.Message.Replace(Config.Username + " ", "");
 
-                if (string.IsNullOrWhiteSpace(prompt) || string.IsNullOrEmpty(prompt)) return;
+                if (string.IsNullOrWhiteSpace(prompt)) return;
 
                 await AskCommand.RunCommand(Received.Username, prompt);
             }
-            else if (Received.Message.ToLower().EndsWith(" " + Username))
+            else if (Received.Message.ToLower().EndsWith(" " + Config.Username))
             {
-                prompt = Received.Message.Replace(" " + Username, "");
+                prompt = Received.Message.Replace(" " + Config.Username, "");
 
-                if (string.IsNullOrWhiteSpace(prompt) || string.IsNullOrEmpty(prompt)) return;
+                if (string.IsNullOrWhiteSpace(prompt)) return;
 
                 await AskCommand.RunCommand(Received.Username, prompt);
             }
         }
 
-        private static bool Disconnected = false;
-        private protected static async Task ReconnectShit()
+        private async Task ReconnectShit()
         {
             Disconnected = false;
-            client.JoinChannel(Channel);
+            client.JoinChannel(Config.Channel);
             PubSub.AttemptReconnect().Wait();
             short updates = await PubSub.CheckStreamStatus();
             Console.WriteLine($"{updates} viewcount updates");

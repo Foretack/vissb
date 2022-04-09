@@ -1,19 +1,13 @@
-﻿using System;
-using TwitchLib.PubSub;
-using TwitchLib.PubSub.Events;
+﻿using TwitchLib.PubSub;
 
 namespace Core
 {
     public class PubSub
     {
-        public static TwitchPubSub Client = new();
+        private static TwitchPubSub Client { get; set; } = new();
 
         private static short Status = 0;
 
-        public PubSub()
-        {
-            Run();
-        }
         public static async Task AttemptReconnect()
         {
             Client.Disconnect();
@@ -33,7 +27,7 @@ namespace Core
             return Status;
         }
 
-        private void Run()
+        public void Run()
         {
             Client = new TwitchPubSub();
 
@@ -46,7 +40,7 @@ namespace Core
             Client.OnListenResponse += (s, e) =>
             {
                 Console.ForegroundColor = ConsoleColor.Yellow;
-                if (!e.Successful) throw new Exception($"Failed to listen! Response: {e.Response}");
+                if (!e.Successful) throw new InvalidDataException($"Failed to listen! Response: {e.Response}");
                 else Console.WriteLine($"[{DateTime.Now}] listening to {e.Topic}");
             };
             Client.OnStreamDown += (s, e) =>
@@ -69,7 +63,7 @@ namespace Core
                 Status += 1;
             };
 
-            Client.ListenToVideoPlayback(Bot.ChannelID.ToString());
+            Client.ListenToVideoPlayback(Config.ChannelID.ToString());
 
             Client.Connect();
         }

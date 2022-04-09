@@ -1,65 +1,56 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using Newtonsoft.Json;
 using System.Net;
 using System.Text;
-using System.Threading.Tasks;
-using Newtonsoft.Json;
 using System.Text.RegularExpressions;
 
 namespace Core
 {
-    public class AskCommand
+    public static class AskCommand
     {
-        public static bool StreamOnline = false;
-        public static HttpClient Requests = new();
-        private static readonly string APILink = "https://api.openai.com/v1/engines/text-davinci-001/completions";
-        private static readonly string[] BlacklistedUsers = { "titlechange_bot", "supibot", "streamelements" };
-
-        public AskCommand()
-        {
-            HandleMessageQueue();
-        }
+        public static bool StreamOnline { get; set; } = false;
+        public static HttpClient Requests { get; } = new();
+        private static string APILink { get; } = "https://api.openai.com/v1/engines/text-davinci-001/completions";
+        private static string[] BlacklistedUsers { get; } = { "titlechange_bot", "supibot", "streamelements" };
 
         public static async Task RunCommand(string Username, string Input)
         {
             if (StreamOnline || BlacklistedUsers.Contains(Username)) return;
-            if (Cooldown.OnCooldown(Username).Item1) 
-            { 
-                Messages.Enqueue($"@{Username}, ppHop Wait {Cooldown.OnCooldown(Username).Item2}s", 100); 
-                return; 
+            if (Cooldown.OnCooldown(Username).Item1)
+            {
+                Messages.Enqueue($"@{Username}, ppHop Wait {Cooldown.OnCooldown(Username).Item2}s", 100);
+                return;
             }
 
             RequestBody body = new()
             {
-                prompt = $"{Username} asks {Bot.Username}: {Input} \n{Bot.Username}:",
+                prompt = $"{Username} asks {Config.Username}: {Input} \n{Config.Username}:",
                 max_tokens = 90,
                 temperature = 0.5f,
                 top_p = 0.3f,
                 frequency_penalty = 0.5f,
                 presence_penalty = 0.0f,
-                stop = new string[] { $"{Username}:", $"{Bot.Username}:" }
+                stop = new string[] { $"{Username}:", $"{Config.Username}:" }
             };
 
             string contentAsString = JsonConvert.SerializeObject(body);
             StringContent content = new(contentAsString, Encoding.UTF8, "application/json");
             HttpResponseMessage req = await Requests.PostAsync(APILink, content);
 
-            if (req.StatusCode != HttpStatusCode.OK) 
+            if (req.StatusCode != HttpStatusCode.OK)
             {
                 Messages.Enqueue("eror Sadeg", 75);
-                return; 
+                return;
             }
 
             string result = await req.Content.ReadAsStringAsync();
             ResponseBody response = JsonConvert.DeserializeObject<ResponseBody>(result)!;
             string reply = $"@{Username}, <no response>";
 
-            if (response.choices.First().text.Length < 2) 
+            if (response.choices.First().text.Length < 2)
             {
                 Messages.Enqueue(await Filter(reply), 50);
                 Cooldown.AddCooldown(Username);
-                return; 
+                return;
             }
 
             string replyText = response.choices.First().text;
@@ -67,7 +58,7 @@ namespace Core
             reply = reply.ToLower().Contains(Username) ? reply : $"{Username}, {reply}";
             Messages.Enqueue(await Filter(reply), 50);
             // Don't add a cooldown to Broadcaster.
-            if (Username == Bot.Channel) return;
+            if (Username == Config.Channel) return;
             Cooldown.AddCooldown(Username);
         }
 
@@ -87,31 +78,30 @@ namespace Core
 
         private static async Task<string> Filter(string Input)
         {
-            string output = Input;
             await Task.Run(() =>
             {
                 // Do this first to reduce work on regexes
-                if (output.Length > 450) output = output.Substring(0, 450) + "... (too long)";
+                if (Input.Length > 450) Input = Input.Substring(0, 450) + "... (too long)";
                 foreach (Regex regex in Filters)
                 {
-                    if (regex.IsMatch(output) && regex.Matches(output).Count == 1) output = output.Replace(regex.Match(output).Value, " [Filtered] ");
+                    if (regex.IsMatch(Input) && regex.Matches(Input).Count == 1) Input = Input.Replace(regex.Match(Input).Value, " [Filtered] ");
                     // .Replace will not work on unique matches (e.g multiple IP addresses in the message). Hence the else if statement.
-                    else if (regex.IsMatch(output) && regex.Matches(output).Count > 1)
+                    else if (regex.IsMatch(Input) && regex.Matches(Input).Count > 1)
                     {
-                        foreach (Match match in regex.Matches(output))
+                        foreach (Match match in regex.Matches(Input))
                         {
-                            output = output.Replace(match.Value, " [Filtered] "); // Nesting FeelsGoodMan
+                            Input = Input.Replace(match.Value, " [Filtered] ");
                         }
                     }
                 }
             });
-            return output;
+            return Input;
         }
 
         // Lower int value = Higher priority
         private static PriorityQueue<string, int> Messages = new();
 
-        private static void HandleMessageQueue()
+        public static void HandleMessageQueue()
         {
             System.Timers.Timer queueTimer = new();
 
@@ -123,19 +113,18 @@ namespace Core
             {
                 if (Messages.Count > 0)
                 {
-                    Bot.client.SendMessage(Bot.Channel, Messages.Dequeue());
+                    Bot.client.SendMessage(Config.Channel, Messages.Dequeue());
                 }
             };
         }
     }
 
-    public class Cooldown
+    public static class Cooldown
     {
-        public static Dictionary<string, long> CooldownPool = new();
+        private static Dictionary<string, long> CooldownPool { get; } = new();
 
         public static void AddCooldown(string User)
         {
-            // .Add shouldn't cause an exception but it does
             CooldownPool.TryAdd(User, DateTimeOffset.Now.ToUnixTimeSeconds());
         }
 
