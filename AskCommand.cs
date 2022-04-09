@@ -23,7 +23,7 @@ namespace Core
 
             RequestBody body = new()
             {
-                prompt = $"{Username} asks {Config.Username}: {Input} \n{Config.Username}:",
+                prompt = BuildContext(Username, Input),
                 max_tokens = 90,
                 temperature = 0.5f,
                 top_p = 0.3f,
@@ -56,10 +56,44 @@ namespace Core
             string replyText = response.choices.First().text;
             reply = $"{replyText.Substring((replyText.IndexOf("\n\n") < 0 ? 0 : replyText.IndexOf("\n\n")))}";
             reply = reply.ToLower().Contains(Username) ? reply : $"{Username}, {reply}";
-            Messages.Enqueue(await Filter(reply), 50);
+            reply = await Filter(reply);
+            Messages.Enqueue(reply, 50);
+            AddQNA(Username, Input, reply);
             // Don't add a cooldown to Broadcaster.
             if (Username == Config.Channel) return;
             Cooldown.AddCooldown(Username);
+        }
+
+        private static readonly Dictionary<string, string[]> PreviousContext = new();
+        private static string BuildContext(string username, string prompt)
+        {
+            string newPrompt;
+            bool s = PreviousContext.TryGetValue(username, out string[]? lastQuestionAndReply);
+
+            if (!s)
+            {
+                newPrompt = $"{username} asks {Config.Username}: {prompt} \n{Config.Username}:";
+                return newPrompt;
+            }
+
+            string lastQuestion = lastQuestionAndReply![0];
+            string lastAnswer = lastQuestionAndReply![1];
+            newPrompt = $"{username}: {lastQuestion}\n{Config.Username}: {lastAnswer}\n{username} asks {Config.Username}: {prompt} \n{Config.Username}: ";
+
+            return newPrompt;
+        }
+
+        private static void AddQNA(string username, string question, string answer)
+        {
+            bool s = PreviousContext.ContainsKey(username);
+
+            if (!s)
+            {
+                PreviousContext.Add(username, new string[] { question, answer });
+                return;
+            }
+
+            PreviousContext[username] = new string[] { question, answer };
         }
 
         private static readonly Regex[] Filters =
