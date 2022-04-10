@@ -9,8 +9,11 @@ namespace Core
     {
         public static bool StreamOnline { get; set; } = false;
         public static HttpClient Requests { get; } = new();
+
         private static string APILink { get; } = "https://api.openai.com/v1/engines/text-davinci-001/completions";
         private static string[] BlacklistedUsers { get; } = { "titlechange_bot", "supibot", "streamelements" };
+        private static Dictionary<string, (string[], long)> PreviousContext { get; } = new();
+        private static PriorityQueue<string, int> Messages { get; } = new();
 
         public static async Task RunCommand(string Username, string Input)
         {
@@ -63,11 +66,10 @@ namespace Core
             Cooldown.AddCooldown(Username);
         }
 
-        private static readonly Dictionary<string, string[]> PreviousContext = new();
         private static string BuildContext(string username, string prompt)
         {
             string newPrompt;
-            bool s = PreviousContext.TryGetValue(username, out string[]? lastQuestionAndReply);
+            bool s = PreviousContext.TryGetValue(username, out (string[], long) lastQuestionAndReply);
 
             if (!s)
             {
@@ -75,9 +77,17 @@ namespace Core
                 return newPrompt;
             }
 
-            string lastQuestion = lastQuestionAndReply![0];
-            string lastAnswer = lastQuestionAndReply![1];
+            string lastQuestion = lastQuestionAndReply!.Item1[0];
+            string lastAnswer = lastQuestionAndReply!.Item1[1];
+            long lastReplyTime = lastQuestionAndReply!.Item2;
+            long currentTime = DateTimeOffset.Now.ToUnixTimeSeconds();
             newPrompt = $"{username}: {lastQuestion}\n{Config.Username}: {lastAnswer}\n{username}: {prompt} \n{Config.Username}: ";
+
+            if (currentTime - lastReplyTime >= 300)
+            {
+                newPrompt = $"{username}: {prompt} \n{Config.Username}: ";
+                return newPrompt;
+            }
 
             return newPrompt;
         }
@@ -88,11 +98,11 @@ namespace Core
 
             if (!s)
             {
-                PreviousContext.Add(username, new string[] { question, answer });
+                PreviousContext.Add(username, (new string[] { question, answer }, DateTimeOffset.Now.ToUnixTimeSeconds()));
                 return;
             }
 
-            PreviousContext[username] = new string[] { question, answer };
+            PreviousContext[username] = (new string[] { question, answer }, DateTimeOffset.Now.ToUnixTimeSeconds());
         }
 
         private static readonly Regex[] Filters =
@@ -131,8 +141,6 @@ namespace Core
             return Input;
         }
 
-        // Lower int value = Higher priority
-        private static PriorityQueue<string, int> Messages = new();
 
         public static void HandleMessageQueue()
         {
@@ -146,7 +154,7 @@ namespace Core
             {
                 if (Messages.Count > 0)
                 {
-                    Bot.client.SendMessage(Config.Channel, Messages.Dequeue());
+                    Bot.Client.SendMessage(Config.Channel, Messages.Dequeue());
                 }
             };
         }
@@ -163,7 +171,7 @@ namespace Core
 
         // Checks if the user is on cooldown. Returns (false, null) if not.
         // Else returns (true, cooldown in seconds)
-        public static ValueTuple<bool, int?> OnCooldown(string User)
+        public static (bool, int?) OnCooldown(string User)
         {
             if (CooldownPool.Count == 0) return (false, null);
 

@@ -23,30 +23,30 @@ namespace Core
 
     public class Bot
     {
-        public static TwitchClient client { get; private set; } = new();
+        public static TwitchClient Client { get; private set; } = new();
 
         public void Run()
         {
-            ConnectionCredentials credentials = new ConnectionCredentials(Config.Username, Config.Token);
-            var clientOptions = new ClientOptions
+            ConnectionCredentials credentials = new(Config.Username, Config.Token);
+            ClientOptions clientOptions = new()
             {
                 MessagesAllowedInPeriod = 750,
                 ThrottlingPeriod = TimeSpan.FromSeconds(30)
             };
-            WebSocketClient customClient = new WebSocketClient(clientOptions);
-            client = new TwitchClient(customClient);
-            client.Initialize(credentials, Config.Channel);
+            WebSocketClient customClient = new(clientOptions);
+            Client = new TwitchClient(customClient);
+            Client.Initialize(credentials, Config.Channel);
 
-            client.OnJoinedChannel += (s, e) =>
+            Client.OnJoinedChannel += (s, e) =>
             {
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine($"[{DateTime.Now}] Connected to {e.Channel}");
             };
-            client.OnMessageReceived += async (s, e) =>
+            Client.OnMessageReceived += async (s, e) =>
             {
                 await HandleMessage(e.ChatMessage);
             };
-            client.OnConnected += async (s, e) =>
+            Client.OnConnected += async (s, e) =>
            {
                if (!Disconnected)
                {
@@ -72,7 +72,7 @@ namespace Core
                    }
                }
            };
-            client.OnDisconnected += (s, e) =>
+            Client.OnDisconnected += (s, e) =>
             {
                 Disconnected = true;
                 Core.DownTime = DateTime.Now;
@@ -87,9 +87,9 @@ namespace Core
 
                 timer.Elapsed += (s, e) =>
                 {
-                    client.Connect();
+                    Client.Connect();
                 };
-                client.OnConnected += async (s, e) =>
+                Client.OnConnected += async (s, e) =>
                 {
                     if (Disconnected)
                     {
@@ -103,7 +103,7 @@ namespace Core
                 };
             };
 
-            client.Connect();
+            Client.Connect();
         }
 
         private bool Disconnected = false;
@@ -115,7 +115,7 @@ namespace Core
             if (Received.Message.StartsWith("!ping"))
             {
                 TimeSpan uptime = DateTime.Now - Core.StartupTime;
-                client.SendMessage(Received.Channel, $":) uptime: {uptime.Days}d {uptime.Hours}h {uptime.Minutes}m {uptime.Seconds}s");
+                Client.SendMessage(Received.Channel, $":) uptime: {uptime.Days}d {uptime.Hours}h {uptime.Minutes}m {uptime.Seconds}s");
             }
             if (Received.Message.ToLower().StartsWith(Config.Username + " "))
             {
@@ -138,7 +138,7 @@ namespace Core
         private async Task ReconnectShit()
         {
             Disconnected = false;
-            client.JoinChannel(Config.Channel);
+            Client.JoinChannel(Config.Channel);
             PubSub.AttemptReconnect().Wait();
             short updates = await PubSub.CheckStreamStatus();
             Console.WriteLine($"{updates} viewcount updates");
