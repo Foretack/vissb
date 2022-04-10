@@ -11,7 +11,7 @@ namespace Core
         public static HttpClient Requests { get; } = new();
 
         private static string APILink { get; } = "https://api.openai.com/v1/engines/text-davinci-001/completions";
-        private static string[] BlacklistedUsers { get; } = { "titlechange_bot", "supibot", "streamelements" };
+        private static string[] BlacklistedUsers { get; } = { "titlechange_bot", "supibot", "streamelements", "megajumpbot" };
         private static Dictionary<string, (string[], long)> PreviousContext { get; } = new();
         private static PriorityQueue<string, int> Messages { get; } = new();
 
