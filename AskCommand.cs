@@ -12,7 +12,7 @@ namespace Core
 
         private static string APILink { get; } = "https://api.openai.com/v1/engines/text-davinci-001/completions";
         private static string[] BlacklistedUsers { get; } = { "titlechange_bot", "supibot", "streamelements", "megajumpbot" };
-        private static Dictionary<string, (string[], long)> PreviousContext { get; } = new();
+        private static Stack<string[]> MessageHistory { get; } = new();
         private static PriorityQueue<string, int> Messages { get; } = new();
 
         public static async Task RunCommand(string Username, string Input)
@@ -68,41 +68,27 @@ namespace Core
 
         private static string BuildContext(string username, string prompt)
         {
-            string newPrompt;
-            bool s = PreviousContext.TryGetValue(username, out (string[], long) lastQuestionAndReply);
-
-            if (!s)
+            StringBuilder sb = new();
+            foreach (string[] qna in MessageHistory.AsEnumerable())
             {
-                newPrompt = $"{username}: {prompt} \n{Config.Username}: ";
-                return newPrompt;
+                sb.Append($"{qna[0]}: {qna[1]}\n");
             }
+            sb.Append($"{username}: {prompt}\n");
+            sb.Append($"{Config.Username}: ");
 
-            string lastQuestion = lastQuestionAndReply!.Item1[0];
-            string lastAnswer = lastQuestionAndReply!.Item1[1];
-            long lastReplyTime = lastQuestionAndReply!.Item2;
-            long currentTime = DateTimeOffset.Now.ToUnixTimeSeconds();
-            newPrompt = $"{username}: {lastQuestion}\n{Config.Username}: {lastAnswer}\n{username}: {prompt} \n{Config.Username}: ";
-
-            if (currentTime - lastReplyTime >= 300)
-            {
-                newPrompt = $"{username}: {prompt} \n{Config.Username}: ";
-                return newPrompt;
-            }
-
-            return newPrompt;
+            return sb.ToString();
         }
 
         private static void AddQNA(string username, string question, string answer)
         {
-            bool s = PreviousContext.ContainsKey(username);
+            MessageHistory.Push(new string[] { username, question });
+            MessageHistory.Push(new string[] { Config.Username, answer });
 
-            if (!s)
+            if (MessageHistory.Count > 15)
             {
-                PreviousContext.Add(username, (new string[] { question, answer }, DateTimeOffset.Now.ToUnixTimeSeconds()));
-                return;
+                MessageHistory.Pop();
+                MessageHistory.Pop();
             }
-
-            PreviousContext[username] = (new string[] { question, answer }, DateTimeOffset.Now.ToUnixTimeSeconds());
         }
 
         private static readonly Regex[] Filters =
