@@ -69,10 +69,14 @@ namespace Core
         private static string BuildContext(string username, string prompt)
         {
             StringBuilder sb = new();
-            foreach (string[] qna in MessageHistory.AsEnumerable())
+            List<string[]> stack = MessageHistory.ToList();
+            for (int i = 0; i < stack.Count; i++)
             {
-                sb.Append($"{qna[0]}: {qna[1]}\n");
+                string[] qna = stack[i];
+                sb.Append($"{qna[0]}: {qna[1]}");
             }
+
+            sb.Append($"----- [{DateTime.Now}] -----");
             sb.Append($"{username}: {prompt}\n");
             sb.Append($"{Config.Username}: ");
 
