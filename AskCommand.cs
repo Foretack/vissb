@@ -73,7 +73,7 @@ namespace Core
             for (int i = 0; i < stack.Count; i++)
             {
                 string[] qna = stack[i];
-                sb.Append($"{qna[0]}: {qna[1]}");
+                sb.Append($"{qna[0]}: {qna[1]}\n");
             }
 
             sb.Append($"----- [{DateTime.Now}] -----");
