@@ -18,7 +18,7 @@ namespace Core
         public static async Task RunCommand(string Username, string Input)
         {
             if (StreamOnline || BlacklistedUsers.Contains(Username)) return;
-            if (Cooldown.OnCooldown(Username).Item1)
+            if (Cooldown.OnCooldown(Username).Item1 && !Messages.UnorderedItems.Any(x => x.Element.Contains(Username)))
             {
                 Messages.Enqueue($"@{Username}, ppHop Wait {Cooldown.OnCooldown(Username).Item2}s", 100);
                 return;
