@@ -1,213 +1,191 @@
-﻿using Newtonsoft.Json;
-using System.Net;
-using System.Text;
+﻿using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
+using Serilog;
+using Timers = System.Timers;
 
-namespace Core
+namespace Core;
+public static class AskCommand
 {
-    public static class AskCommand
+    public static readonly HttpClient Requests = new HttpClient();
+
+    private static readonly string RequestLink = "https://api.openai.com/v1/engines/text-davinci-001/completions";
+    private static readonly string[] BlacklistedUsers = { "titlechange_bot", "supibot", "streamelements", "megajumpbot" };
+    private static readonly PriorityQueue<string, int> MessageQueue = new PriorityQueue<string, int>();
+    private static readonly Dictionary<string, (string[], long)> PreviousContext = new Dictionary<string, (string[], long)>();
+    public static async ValueTask Run(string username, string prompt)
     {
-        public static bool StreamOnline { get; set; } = false;
-        public static HttpClient Requests { get; } = new();
-
-        private static string APILink { get; } = "https://api.openai.com/v1/engines/text-davinci-001/completions";
-        private static string[] BlacklistedUsers { get; } = { "titlechange_bot", "supibot", "streamelements", "megajumpbot" };
-        private static Dictionary<string, (string[], long)> PreviousContext { get; } = new();
-        private static PriorityQueue<string, int> Messages { get; } = new();
-
-        public static async Task RunCommand(string Username, string Input)
+        if (StreamMonitor.StreamOnline || BlacklistedUsers.Contains(username)) return;
+        if (Cooldowns.OnCooldown(username))
         {
-            if (StreamOnline || BlacklistedUsers.Contains(Username)) return;
-            if (Cooldown.OnCooldown(Username).Item1)
-            {
-                if (Messages.UnorderedItems.Any(x => x.Element.Contains(Username))) return;
-                Messages.Enqueue($"@{Username}, ppHop Wait {Cooldown.OnCooldown(Username).Item2}s", 100);
-                return;
-            }
-
-            RequestBody body = new()
-            {
-                prompt = BuildContext(Username, Input),
-                max_tokens = 90,
-                temperature = 0.5f,
-                top_p = 0.3f,
-                frequency_penalty = 0.5f,
-                presence_penalty = 0.0f,
-            };
-
-            string contentAsString = JsonConvert.SerializeObject(body);
-            StringContent content = new(contentAsString, Encoding.UTF8, "application/json");
-            HttpResponseMessage req = await Requests.PostAsync(APILink, content);
-
-            if (req.StatusCode != HttpStatusCode.OK)
-            {
-                Messages.Enqueue("eror Sadeg", 75);
-                return;
-            }
-
-            string result = await req.Content.ReadAsStringAsync();
-            ResponseBody response = JsonConvert.DeserializeObject<ResponseBody>(result)!;
-            string reply = $"@{Username}, <no response>";
-
-            if (response.choices.First().text.Length < 3)
-            {
-                Messages.Enqueue(await Filter(reply), 50);
-                Cooldown.AddCooldown(Username);
-                return;
-            }
-
-            string replyText = response.choices.First().text;
-            reply = $"{replyText.Substring((replyText.IndexOf("\n\n") < 0 ? 0 : replyText.IndexOf("\n\n")))}";
-            reply = reply.ToLower().Contains(Username) ? reply : $"{Username}, {reply}";
-            reply = await Filter(reply);
-            Messages.Enqueue(reply, 50);
-            AddQNA(Username, Input, reply);
-            // Don't add a cooldown to Broadcaster.
-            if (Username == Config.Channel) return;
-            Cooldown.AddCooldown(Username);
+            MessageQueue.Enqueue($"{username} ? u coldown Okayeg", 100);
+            return;
         }
 
-        private static string BuildContext(string username, string prompt)
+        RequestBody body = new RequestBody();
+        body.prompt = BuildContext(username, prompt);
+        body.max_tokens = 90;
+        body.temperature = 0.5f;
+        body.top_p = 0.3f;
+        body.frequency_penalty = 0.5f;
+        body.presence_penalty = 0;
+
+        string cString = JsonSerializer.Serialize(body);
+        StringContent content = new StringContent(cString, Encoding.UTF8, "application/json");
+        HttpResponseMessage response = await Requests.PostAsync(RequestLink, content);
+
+        if (!response.IsSuccessStatusCode)
         {
-            string newPrompt;
-            bool s = PreviousContext.TryGetValue(username, out (string[], long) lastQuestionAndReply);
+            MessageQueue.Enqueue("eror Sadeg", 1);
+            Log.Error("Request did not indicate success response (your token is likely consumed)");
+            return;
+        }
 
-            if (!s)
+        Stream responseStream = await response.Content.ReadAsStreamAsync();
+        string replyText = (await JsonSerializer.DeserializeAsync<ResponseBody>(responseStream))!.choices[0].text;
+
+        if (replyText is null || replyText.Length < 3)
+        {
+            MessageQueue.Enqueue($"{username}, <empty message>", 50);
+            return;
+        }
+
+        replyText = replyText[(replyText.IndexOf("\n\n") <= 0 ? 0 : replyText.IndexOf("\n\n"))..];
+        replyText = replyText.ToLower().Contains(username) ? replyText : $"{username}, {replyText}";
+        replyText = replyText.Filter();
+
+        MessageQueue.Enqueue(replyText, 25);
+        AddQNA(username, prompt, replyText);
+        if (username != Config.Channel) Cooldowns.AddCooldown(username);
+    }
+
+    public static void HandleMessageQueue()
+    {
+        Timers::Timer queueTimer = new();
+
+        queueTimer.Interval = 3000;
+        queueTimer.AutoReset = true;
+        queueTimer.Enabled = true;
+
+        queueTimer.Elapsed += (s, e) =>
+        {
+            if (MessageQueue.Count > 0)
             {
-                newPrompt = $"{username}: {prompt} \n{Config.Username}: ";
-                return newPrompt;
+                Bot.Client.SendMessage(Config.Channel, MessageQueue.Dequeue());
             }
+        };
+    }
 
-            string lastQuestion = lastQuestionAndReply!.Item1[0];
-            string lastAnswer = lastQuestionAndReply!.Item1[1];
-            long lastReplyTime = lastQuestionAndReply!.Item2;
-            long currentTime = DateTimeOffset.Now.ToUnixTimeSeconds();
-            newPrompt = $"{username}: {lastQuestion}\n{Config.Username}: {lastAnswer}\n{username}: {prompt} \n{Config.Username}: ";
-
-            if (currentTime - lastReplyTime >= 300)
+    private static string Filter(this string prompt)
+    {
+        if (prompt.Length > 450) prompt = prompt.Substring(0, 450) + "... (too long)";
+        foreach (Regex regex in Regexes.Filters)
+        {
+            if (regex.IsMatch(prompt) && regex.Matches(prompt).Count == 1) prompt = prompt.Replace(regex.Match(prompt).Value, " [Filtered] ");
+            // .Replace will not work on unique matches (e.g multiple IP addresses in the message). Hence the else if statement.
+            else if (regex.IsMatch(prompt) && regex.Matches(prompt).Count > 1)
             {
-                newPrompt = $"{username}: {prompt} \n{Config.Username}: ";
-                return newPrompt;
+                foreach (Match match in regex.Matches(prompt))
+                {
+                    prompt = prompt.Replace(match.Value, " [Filtered] ");
+                }
             }
+        }
+        return prompt;
+    }
 
+    private static string BuildContext(string username, string prompt)
+    {
+        string newPrompt;
+        bool s = PreviousContext.TryGetValue(username, out (string[], long) lastQuestionAndReply);
+
+        if (!s)
+        {
+            newPrompt = $"{username}: {prompt} \n{Config.Username}: ";
             return newPrompt;
         }
 
-        private static void AddQNA(string username, string question, string answer)
+        string lastQuestion = lastQuestionAndReply.Item1[0];
+        string lastAnswer = lastQuestionAndReply.Item1[1];
+        long lastReplyTime = lastQuestionAndReply.Item2;
+        long currentTime = DateTimeOffset.Now.ToUnixTimeSeconds();
+        newPrompt = $"{username}: {lastQuestion}\n{Config.Username}: {lastAnswer}\n{username}: {prompt} \n{Config.Username}: ";
+
+        if (currentTime - lastReplyTime >= 300)
         {
-            bool s = PreviousContext.ContainsKey(username);
-
-            if (!s)
-            {
-                PreviousContext.Add(username, (new string[] { question, answer }, DateTimeOffset.Now.ToUnixTimeSeconds()));
-                return;
-            }
-
-            PreviousContext[username] = (new string[] { question, answer }, DateTimeOffset.Now.ToUnixTimeSeconds());
+            newPrompt = $"{username}: {prompt} \n{Config.Username}: ";
+            return newPrompt;
         }
 
-        private static readonly Regex[] Filters =
-        {
-            // N words
-            new Regex(@"(?:(?:\b(?<![-=\.])|monka)(?:[Nnñ]|[Ii7]V)|η|[\/|]\\[\/|])[\s\.]*?[liI1y!j\/|]+[\s\.]*?(?:[GgbB6934Q🅱qğĜƃ၅5\*][\s\.]*?){2,}(?!arcS|l|Ktlw|ylul|ie217|64|\d? ?times)", RegexOptions.Compiled, TimeSpan.FromMilliseconds(200)),
-            // Age TOS
-            new Regex(@"(\b[iI][012]\b|\b[1-9]\b|\b1[012]\b|twelve|eleven|ten|nine|eight|seven|six|five|four|three|two|one).*year(s)?.*(old|age)", RegexOptions.IgnoreCase | RegexOptions.Compiled, TimeSpan.FromMilliseconds(200)),
-            // Links
-            new Regex(@"(https:[\\/][\\/])?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&\=]*)", RegexOptions.Compiled, TimeSpan.FromMilliseconds(200)),
-            // (Valid) IP addresses
-            new Regex(@"\b((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.|$)){4}", RegexOptions.Compiled, TimeSpan.FromMilliseconds(200)),
-            // More TOS hunting
-            new Regex(@"\b(negro|coon)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled, TimeSpan.FromMilliseconds(200))
-        };
-
-        private static async Task<string> Filter(string Input)
-        {
-            await Task.Run(() =>
-            {
-                // Do this first to reduce work on regexes
-                if (Input.Length > 450) Input = Input.Substring(0, 450) + "... (too long)";
-                foreach (Regex regex in Filters)
-                {
-                    if (regex.IsMatch(Input) && regex.Matches(Input).Count == 1) Input = Input.Replace(regex.Match(Input).Value, " [Filtered] ");
-                    // .Replace will not work on unique matches (e.g multiple IP addresses in the message). Hence the else if statement.
-                    else if (regex.IsMatch(Input) && regex.Matches(Input).Count > 1)
-                    {
-                        foreach (Match match in regex.Matches(Input))
-                        {
-                            Input = Input.Replace(match.Value, " [Filtered] ");
-                        }
-                    }
-                }
-            });
-            return Input;
-        }
-
-
-        public static void HandleMessageQueue()
-        {
-            System.Timers.Timer queueTimer = new();
-
-            queueTimer.Interval = 3000;
-            queueTimer.AutoReset = true;
-            queueTimer.Enabled = true;
-
-            queueTimer.Elapsed += (s, e) =>
-            {
-                if (Messages.Count > 0)
-                {
-                    Bot.Client.SendMessage(Config.Channel, Messages.Dequeue());
-                }
-            };
-        }
+        return newPrompt;
     }
 
-    public static class Cooldown
+    private static void AddQNA(string username, string question, string answer)
     {
-        private static Dictionary<string, long> CooldownPool { get; } = new();
+        bool s = PreviousContext.ContainsKey(username);
 
-        public static void AddCooldown(string User)
+        if (!s)
         {
-            CooldownPool.TryAdd(User, DateTimeOffset.Now.ToUnixTimeSeconds());
+            PreviousContext.Add(username, (new string[] { question, answer }, DateTimeOffset.Now.ToUnixTimeSeconds()));
+            return;
         }
 
-        // Checks if the user is on cooldown. Returns (false, null) if not.
-        // Else returns (true, cooldown in seconds)
-        public static (bool, int?) OnCooldown(string User)
-        {
-            if (CooldownPool.Count == 0) return (false, null);
-
-            bool s = CooldownPool.TryGetValue(User, out long lastUsed);
-
-            if (!s) return (false, null);
-            if (DateTimeOffset.Now.ToUnixTimeSeconds() - lastUsed < 59)
-            {
-                return (true, (int)(60 - (DateTimeOffset.Now.ToUnixTimeSeconds() - lastUsed)));
-            }
-
-            CooldownPool.Remove(User);
-
-            return (false, null);
-        }
+        PreviousContext[username] = (new string[] { question, answer }, DateTimeOffset.Now.ToUnixTimeSeconds());
     }
+}
 
-    class RequestBody
+public static class Cooldowns
+{
+    private static readonly List<string> CooldownPool = new List<string>();
+
+    public static bool OnCooldown(string username) { return CooldownPool.Contains(username); }
+    public static void AddCooldown(string username)
     {
-        public string prompt { get; set; } = default!;
-        public int max_tokens { get; set; }
-        public float temperature { get; set; }
-        public float top_p { get; set; }
-        public float frequency_penalty { get; set; }
-        public float presence_penalty { get; set; }
-        public string[] stop { get; set; } = default!;
-    }
-
-    class ResponseBody
-    {
-        public Choice[] choices { get; set; } = default!;
-
-        public class Choice
+        CooldownPool.Add(username);
+        Timer? removalTimer = null;
+        removalTimer = new Timer(callback =>
         {
-            public string text { get; set; } = default!;
-        }
+            CooldownPool.Remove(username);
+            Log.Debug($"Removed {username} cooldown");
+            removalTimer!.Dispose();
+        }, null, Config.AskCommandCooldown * 1000, Timeout.Infinite);
+    }
+}
+
+public static class Regexes
+{
+    public static readonly Regex[] Filters =
+    {
+        // N words
+        new Regex(@"(?:(?:\b(?<![-=\.])|monka)(?:[Nnñ]|[Ii7]V)|η|[\/|]\\[\/|])[\s\.]*?[liI1y!j\/|]+[\s\.]*?(?:[GgbB6934Q🅱qğĜƃ၅5\*][\s\.]*?){2,}(?!arcS|l|Ktlw|ylul|ie217|64|\d? ?times)", RegexOptions.Compiled, TimeSpan.FromMilliseconds(200)),
+        // Age TOS
+        new Regex(@"(\b[iI][012]\b|\b[1-9]\b|\b1[012]\b|twelve|eleven|ten|nine|eight|seven|six|five|four|three|two|one).*year(s)?.*(old|age)", RegexOptions.IgnoreCase | RegexOptions.Compiled, TimeSpan.FromMilliseconds(200)),
+        // Links
+        new Regex(@"(https:[\\/][\\/])?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&\=]*)", RegexOptions.Compiled, TimeSpan.FromMilliseconds(200)),
+        // (Valid) IP addresses
+        new Regex(@"\b((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\.|$)){4}", RegexOptions.Compiled, TimeSpan.FromMilliseconds(200)),
+        // More TOS hunting
+        new Regex(@"\b(negro|coon)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled, TimeSpan.FromMilliseconds(200))
+    };
+}
+
+class RequestBody
+{
+    public string prompt { get; set; } = default!;
+    public int max_tokens { get; set; }
+    public float temperature { get; set; }
+    public float top_p { get; set; }
+    public float frequency_penalty { get; set; }
+    public float presence_penalty { get; set; }
+    public string[] stop { get; set; } = default!;
+}
+
+class ResponseBody
+{
+    public Choice[] choices { get; set; } = default!;
+
+    public class Choice
+    {
+        public string text { get; set; } = default!;
     }
 }

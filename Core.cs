@@ -1,158 +1,89 @@
-﻿using TwitchLib.Client;
+﻿using Serilog;
+using Serilog.Core;
+using TwitchLib.Client;
 using TwitchLib.Client.Models;
 using TwitchLib.Communication.Clients;
 using TwitchLib.Communication.Models;
+using TwitchLib.Communication.Events;
+using TwitchLib.Client.Events;
 
-namespace Core
+namespace Core;
+public static class Core
 {
-    public static class Core
+    public static DateTime StartupTime { get; private set; }
+
+    private static LoggingLevelSwitch LogSwitch = new LoggingLevelSwitch();
+    public static async Task Main(string[] args)
     {
-        public static DateTime StartupTime { get; private set; } = new();
-        public static DateTime DownTime { get; set; } = new();
+        LogSwitch.MinimumLevel = Serilog.Events.LogEventLevel.Information;
+        Log.Logger = new LoggerConfiguration().MinimumLevel.ControlledBy(LogSwitch).WriteTo.Console().CreateLogger();
 
-        static void Main(string[] args)
+        await Bot.Initialize();
+        Console.ReadLine();
+    }
+}
+
+public static class Bot
+{
+    public static TwitchClient Client { get; private set; } = new TwitchClient();
+
+    public static Task Initialize()
+    {
+        ConnectionCredentials credentials = new ConnectionCredentials(Config.Username, Config.Token);
+        ClientOptions options = new ClientOptions()
         {
-            Bot bot = new();
-            bot.Run();
-            StartupTime = DateTime.Now;
-            AskCommand.Requests.DefaultRequestHeaders.Add("Authorization", Config.OpenAIToken);
-            Console.ReadLine();
-        }
+            MessagesAllowedInPeriod = 100,
+            ThrottlingPeriod = TimeSpan.FromSeconds(30)
+        };
+        WebSocketClient wsClient = new WebSocketClient(options);
+        Client = new TwitchClient(wsClient);
+        Client.AutoReListenOnException = true;
+        Client.Initialize(credentials, Config.Channel);
 
+        Client.OnIncorrectLogin += (s, e) => { Log.Fatal(e.Exception, $"The account creditentials you provided are invalid!"); throw e.Exception; };
+        Client.OnConnected += (s, e) => { Log.Information($"Connected as {e.BotUsername}"); };
+        Client.OnJoinedChannel += (s, e) => { Log.Information($"Joined {e.Channel}"); };
+        Client.OnConnectionError += OnConnectionError;
+        Client.OnReconnected += OnReconnected;
+        Client.OnMessageReceived += OnMessageReceived;
+
+        StreamMonitor.Initialize();
+        Client.Connect();
+        AskCommand.Requests.DefaultRequestHeaders.Add("Authorization", Config.OpenAIToken);
+        AskCommand.HandleMessageQueue();
+
+        return Task.CompletedTask;
     }
 
-    public class Bot
+    private static void OnReconnected(object? sender, OnReconnectedEventArgs e)
     {
-        public static TwitchClient Client { get; private set; } = new();
+        Log.Information("Reconnected. Attempting to rejoin channel...");
+        Client.JoinChannel(Config.Channel);
+    }
 
-        public void Run()
+    private static void OnConnectionError(object? sender, OnConnectionErrorArgs e)
+    {
+        Log.Warning($"A connection error has occured. Attempting to reconnect...");
+    }
+
+    private static async void OnMessageReceived(object? sender, OnMessageReceivedArgs e)
+    {
+        await HandleMessage(e.ChatMessage);
+    }
+
+    private static async ValueTask HandleMessage(ChatMessage ircMessage)
+    {
+        string[] args = ircMessage.Message.Split(' ');
+
+        if (args.Length == 1) return;
+
+        if (args[0].Contains(Config.Username))
         {
-            ConnectionCredentials credentials = new(Config.Username, Config.Token);
-            ClientOptions clientOptions = new()
-            {
-                MessagesAllowedInPeriod = 750,
-                ThrottlingPeriod = TimeSpan.FromSeconds(30)
-            };
-            WebSocketClient customClient = new(clientOptions);
-            Client = new TwitchClient(customClient);
-            Client.Initialize(credentials, Config.Channel);
-
-            Client.OnJoinedChannel += (s, e) =>
-            {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine($"[{DateTime.Now}] Connected to {e.Channel}");
-            };
-            Client.OnMessageReceived += async (s, e) =>
-            {
-                await HandleMessage(e.ChatMessage);
-            };
-            Client.OnConnected += async (s, e) =>
-           {
-               if (!Disconnected)
-               {
-                   Console.ForegroundColor = ConsoleColor.Magenta;
-                   Console.WriteLine($"[{DateTime.Now}] --- Connected");
-
-                   PubSub pubSub = new();
-                   pubSub.Run();
-                   AskCommand.HandleMessageQueue();
-
-                   short updates = await PubSub.CheckStreamStatus();
-                   Console.WriteLine($"{updates} viewcount updates");
-
-                   if (updates == 0)
-                   {
-                       Console.WriteLine($"[{DateTime.Now}] The stream is currently offline, resuming replies. ");
-                       AskCommand.StreamOnline = false;
-                   }
-                   else
-                   {
-                       Console.WriteLine($"[{DateTime.Now}] The stream is currently online, replies disabled. ");
-                       AskCommand.StreamOnline = true;
-                   }
-               }
-           };
-            Client.OnDisconnected += (s, e) =>
-            {
-                Disconnected = true;
-                Core.DownTime = DateTime.Now;
-
-                Console.ForegroundColor = ConsoleColor.Magenta;
-                Console.WriteLine($"[{DateTime.Now}] --- Disconnected");
-
-                System.Timers.Timer timer = new();
-                timer.Interval = 5000;
-                timer.AutoReset = true;
-                timer.Enabled = true;
-
-                timer.Elapsed += (s, e) =>
-                {
-                    Client.Connect();
-                };
-                Client.OnConnected += async (s, e) =>
-                {
-                    if (Disconnected)
-                    {
-                        Console.ForegroundColor = ConsoleColor.Green;
-                        Console.WriteLine($"Reconnected after {(int)(DateTime.Now - Core.DownTime).TotalSeconds}s");
-
-                        await ReconnectShit();
-                        timer.Stop();
-                        Disconnected = false;
-                    }
-                };
-            };
-
-            Client.Connect();
+            await AskCommand.Run(ircMessage.Username, string.Join(' ', args[1..]));
         }
-
-        private bool Disconnected = false;
-
-        public async Task HandleMessage(ChatMessage Received)
+        if (args[^1].Contains(Config.Username))
         {
-            string prompt;
-
-            if (Received.Message.StartsWith("!ping"))
-            {
-                TimeSpan uptime = DateTime.Now - Core.StartupTime;
-                Client.SendMessage(Received.Channel, $":) uptime: {uptime.Days}d {uptime.Hours}h {uptime.Minutes}m {uptime.Seconds}s");
-            }
-            if (Received.Message.ToLower().StartsWith(Config.Username + " "))
-            {
-                prompt = Received.Message.Replace(Config.Username + " ", "");
-
-                if (string.IsNullOrWhiteSpace(prompt)) return;
-
-                await AskCommand.RunCommand(Received.Username, prompt);
-            }
-            else if (Received.Message.ToLower().EndsWith(" " + Config.Username))
-            {
-                prompt = Received.Message.Replace(" " + Config.Username, "");
-
-                if (string.IsNullOrWhiteSpace(prompt)) return;
-
-                await AskCommand.RunCommand(Received.Username, prompt);
-            }
-        }
-
-        private async Task ReconnectShit()
-        {
-            Disconnected = false;
-            Client.JoinChannel(Config.Channel);
-            PubSub.AttemptReconnect().Wait();
-            short updates = await PubSub.CheckStreamStatus();
-            Console.WriteLine($"{updates} viewcount updates");
-
-            if (updates == 0)
-            {
-                Console.WriteLine($"[{DateTime.Now}] The stream is currently offline, resuming replies. ");
-                AskCommand.StreamOnline = false;
-            }
-            else
-            {
-                Console.WriteLine($"[{DateTime.Now}] The stream is currently online, replies disabled. ");
-                AskCommand.StreamOnline = true;
-            }
+            await AskCommand.Run(ircMessage.Username, string.Join(' ', args[..^1]));
         }
     }
 }
