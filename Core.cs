@@ -77,13 +77,19 @@ public static class Bot
 
         if (args.Length == 1) return;
 
-        if (args[0].Contains(Config.Username))
+        if (args[0].ToLower().Contains(Config.Username))
         {
             await AskCommand.Run(ircMessage.Username, string.Join(' ', args[1..]));
         }
-        if (args[^1].Contains(Config.Username))
+        if (args[^1].ToLower().Contains(Config.Username))
         {
             await AskCommand.Run(ircMessage.Username, string.Join(' ', args[..^1]));
+        }
+        if (args[0] == "!ping")
+        {
+            TimeSpan uptime = DateTime.Now - Core.StartupTime;
+            string uptimeString = uptime.TotalDays >= 1 ? $"{uptime:d' days and 'h' hours'}" : $"{uptime:h'h'm'm's's'}";
+            Client.SendMessage(Config.Channel, $"Pong! :) {uptimeString}");
         }
     }
 }
