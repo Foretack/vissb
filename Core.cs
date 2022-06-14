@@ -80,10 +80,12 @@ public static class Bot
         if (args[0].ToLower().Contains(Config.Username))
         {
             await AskCommand.Run(ircMessage.Username, string.Join(' ', args[1..]));
+            return;
         }
         if (args[^1].ToLower().Contains(Config.Username))
         {
             await AskCommand.Run(ircMessage.Username, string.Join(' ', args[..^1]));
+            return;
         }
         if (args[0] == "!ping")
         {
