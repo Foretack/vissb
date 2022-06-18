@@ -6,6 +6,7 @@ using TwitchLib.Communication.Clients;
 using TwitchLib.Communication.Models;
 using TwitchLib.Communication.Events;
 using TwitchLib.Client.Events;
+using TwitchLib.Client.Exceptions;
 
 namespace Core;
 public static class Core
@@ -35,6 +36,9 @@ public static class Bot
             MessagesAllowedInPeriod = 100,
             ThrottlingPeriod = TimeSpan.FromSeconds(30)
         };
+        ReconnectionPolicy policy = new ReconnectionPolicy();
+        policy.SetMaxAttempts(15);
+        options.ReconnectionPolicy = policy;
         WebSocketClient wsClient = new WebSocketClient(options);
         Client = new TwitchClient(wsClient);
         Client.AutoReListenOnException = true;
@@ -58,6 +62,7 @@ public static class Bot
     private static void OnReconnected(object? sender, OnReconnectedEventArgs e)
     {
         Log.Information("Reconnected. Attempting to rejoin channel...");
+        Task.Delay(TimeSpan.FromSeconds(5));
         Client.JoinChannel(Config.Channel);
     }
 
@@ -68,7 +73,11 @@ public static class Bot
 
     private static async void OnMessageReceived(object? sender, OnMessageReceivedArgs e)
     {
-        await HandleMessage(e.ChatMessage);
+        try
+        {
+            await HandleMessage(e.ChatMessage);
+        }
+        catch (BadStateException) { Client.JoinChannel(Config.Channel); }
     }
 
     private static async ValueTask HandleMessage(ChatMessage ircMessage)
