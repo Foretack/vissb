@@ -47,7 +47,7 @@ public static class Bot
         Client.OnIncorrectLogin += (s, e) => { Log.Fatal(e.Exception, $"The account creditentials you provided are invalid!"); throw e.Exception; };
         Client.OnConnected += (s, e) => { Log.Information($"Connected as {e.BotUsername}"); };
         Client.OnJoinedChannel += (s, e) => { Log.Information($"Joined {e.Channel}"); };
-        Client.OnConnectionError += OnConnectionError;
+        Client.OnDisconnected += OnDisconnected;
         Client.OnReconnected += OnReconnected;
         Client.OnMessageReceived += OnMessageReceived;
 
@@ -59,24 +59,23 @@ public static class Bot
         return Task.CompletedTask;
     }
 
-    private static void OnReconnected(object? sender, OnReconnectedEventArgs e)
+    private static async void OnDisconnected(object? sender, OnDisconnectedEventArgs e)
     {
-        Log.Information("Reconnected. Attempting to rejoin channel...");
-        Task.Delay(TimeSpan.FromSeconds(5));
-        Client.JoinChannel(Config.Channel);
+        Log.Warning($"Disconnected. Attempting to reconnect...");
+        await Task.Delay(TimeSpan.FromSeconds(5));
+        Client.Reconnect();
     }
 
-    private static void OnConnectionError(object? sender, OnConnectionErrorArgs e)
+    private static async void OnReconnected(object? sender, OnReconnectedEventArgs e)
     {
-        Log.Warning($"A connection error has occured. Attempting to reconnect...");
+        Log.Information("Reconnected. Rejoining channel...");
+        await Task.Delay(TimeSpan.FromSeconds(5));
+        Client.JoinChannel(Config.Channel);
     }
 
     private static async void OnMessageReceived(object? sender, OnMessageReceivedArgs e)
     {
-        try
-        {
-            await HandleMessage(e.ChatMessage);
-        }
+        try { await HandleMessage(e.ChatMessage); }
         catch (BadStateException) { Client.JoinChannel(Config.Channel); }
     }
 
