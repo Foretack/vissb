@@ -76,6 +76,7 @@ public static class Bot
     {
         Log.Fatal(e.Exception.Message);
         RestartProcess();
+        Console.Write(" ");
     }
 
     private static void OnDisconnected(object? sender, OnDisconnectedEventArgs e)
