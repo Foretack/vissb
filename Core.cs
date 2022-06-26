@@ -9,6 +9,8 @@ using TwitchLib.Client.Events;
 using TwitchLib.Client.Exceptions;
 using System.Diagnostics;
 using System.Reflection;
+using CliWrap;
+using CliWrap.Buffered;
 
 namespace Core;
 public static class Core
@@ -109,6 +111,17 @@ public static class Bot
             TimeSpan uptime = DateTime.Now - Core.StartupTime;
             string uptimeString = uptime.TotalDays >= 1 ? $"{uptime:d' days and 'h' hours'}" : $"{uptime:h'h'm'm's's'}";
             Client.SendMessage(Config.Channel, $"Pong! :) {uptimeString}");
+        }
+
+        if (ircMessage.Message.StartsWith($"!{Config.Username} update")
+        && ircMessage.Username == Config.HosterName)
+        {
+            var pullResults = await Cli.Wrap("git").WithArguments("pull").ExecuteBufferedAsync();
+            string result =  pullResults.StandardOutput
+                .Split('\n')
+                .First(x => x.Contains("files changed") || x.Contains("file changed") || x.Contains("Already up to date"));
+
+            Client.SendMessage(Config.Channel, $"{result}");
         }
     }
 
