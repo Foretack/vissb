@@ -16,8 +16,11 @@ namespace Core
             Monitor.SetChannelsByName(new List<string> { Config.Channel });
             Monitor.Start();
 
-            Monitor.OnStreamOnline += (s, e) => StreamOnline = true;
-            Monitor.OnStreamOffline += (s, e) => StreamOnline = false;
+            Monitor.OnStreamOnline += (s, e) => SetStreamOnline();
+            Monitor.OnStreamOffline += (s, e) => SetStreamOffline();
         }
+
+        private static void SetStreamOnline() { StreamOnline = true; }
+        private static void SetStreamOffline() { StreamOnline = false; }
     }
 }
