@@ -23,6 +23,7 @@ public static class Core
     {
         LogSwitch.MinimumLevel = Serilog.Events.LogEventLevel.Information;
         Log.Logger = new LoggerConfiguration().MinimumLevel.ControlledBy(LogSwitch).WriteTo.Console().CreateLogger();
+        StartupTime = DateTime.Now;
 
         await Bot.Initialize();
         Console.ReadLine();
