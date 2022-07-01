@@ -11,6 +11,7 @@ using System.Diagnostics;
 using System.Reflection;
 using CliWrap;
 using CliWrap.Buffered;
+using ST = System.Timers.Timer;
 
 namespace Core;
 public static class Core
@@ -61,13 +62,15 @@ public static class Bot
         Client.OnConnectionError += OnConnectionError;
 
         int cc = 0;
-        Client.Connect();
+        try { Client.Connect(); }
+        catch (Exception) { await Task.Delay(2500); RestartProcess(); }
         while (!Connected)
         {
             await Task.Delay(1000);
             cc++;
             if (cc >= 10) RestartProcess();
         }
+        WatchConnection();
 
         StreamMonitor.Initialize();
         AskCommand.Requests.DefaultRequestHeaders.Add("Authorization", Config.OpenAIToken);
@@ -140,5 +143,14 @@ public static class Bot
         Log.Fatal("Process is restarting...");
         Process.Start($"./{Core.AssemblyName}", Environment.GetCommandLineArgs());
         Environment.Exit(0);
+    }
+
+    private static void WatchConnection()
+    {
+        ST timer = new ST();
+        timer.Interval = 30 * 1000;
+        timer.Enabled = true;
+
+        timer.Elapsed += (s, e) => { if (!Client.IsConnected) RestartProcess(); };
     }
 }
