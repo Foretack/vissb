@@ -34,7 +34,8 @@ public static class Bot
 {
     public static TwitchClient Client { get; private set; } = new TwitchClient();
 
-    public static Task Initialize()
+    private static bool Connected { get; set; } = false;
+    public static async Task Initialize()
     {
         ConnectionCredentials credentials = new ConnectionCredentials(Config.Username, Config.Token);
         ClientOptions options = new ClientOptions()
@@ -51,7 +52,7 @@ public static class Bot
         Client.Initialize(credentials, Config.Channel);
 
         Client.OnIncorrectLogin += (s, e) => { Log.Fatal(e.Exception, $"The account creditentials you provided are invalid!"); throw e.Exception; };
-        Client.OnConnected += (s, e) => { Log.Information($"Connected as {e.BotUsername}"); };
+        Client.OnConnected += (s, e) => { Log.Information($"Connected as {e.BotUsername}"); Connected = true; };
         Client.OnJoinedChannel += (s, e) => { Log.Information($"Joined {e.Channel}"); };
         Client.OnMessageReceived += OnMessageReceived;
         
@@ -59,12 +60,18 @@ public static class Bot
         Client.OnError += OnError;
         Client.OnConnectionError += OnConnectionError;
 
-        StreamMonitor.Initialize();
+        int cc = 0;
         Client.Connect();
+        while (!Connected)
+        {
+            await Task.Delay(1000);
+            cc++;
+            if (cc >= 10) RestartProcess();
+        }
+
+        StreamMonitor.Initialize();
         AskCommand.Requests.DefaultRequestHeaders.Add("Authorization", Config.OpenAIToken);
         AskCommand.HandleMessageQueue();
-
-        return Task.CompletedTask;
     }
 
     private static void OnConnectionError(object? sender, OnConnectionErrorArgs e)
