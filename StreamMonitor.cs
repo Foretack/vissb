@@ -1,4 +1,5 @@
-﻿using TwitchLib.Api;
+﻿using Serilog;
+using TwitchLib.Api;
 using TwitchLib.Api.Core;
 using TwitchLib.Api.Services;
 
@@ -16,8 +17,10 @@ namespace Core
             Monitor.SetChannelsByName(new List<string> { Config.Channel });
             Monitor.Start();
 
-            Monitor.OnStreamOnline += (s, e) => StreamOnline = true;
-            Monitor.OnStreamOffline += (s, e) => StreamOnline = false;
+            Monitor.OnStreamOnline += (_,_) => { StreamOnline = true; Log.Information($"{Config.Channel} is live!"); };
+            Monitor.OnStreamOffline += (_,_) => { StreamOnline = false; Log.Information($"{Config.Channel} is offline!"); };
+            Monitor.OnServiceStarted += (_,_) => Log.Information("StreamMonitor service started!");
+            Monitor.OnServiceStopped += (_,_) => Log.Warning("StreamMonitor service stopped!");
         }
     }
 }

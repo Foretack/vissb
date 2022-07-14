@@ -77,26 +77,26 @@ public static class Bot
         AskCommand.HandleMessageQueue();
     }
 
-    private static void OnConnectionError(object? sender, OnConnectionErrorArgs e)
+    private static void OnConnectionError(object? _, OnConnectionErrorArgs e)
     {
         Log.Fatal(e.Error.Message);
         RestartProcess();
     }
 
-    private static void OnError(object? sender, OnErrorEventArgs e)
+    private static void OnError(object? _, OnErrorEventArgs e)
     {
         Log.Fatal(e.Exception.Message);
         RestartProcess();
         Console.Write(" ");
     }
 
-    private static void OnDisconnected(object? sender, OnDisconnectedEventArgs e)
+    private static void OnDisconnected(object? _, OnDisconnectedEventArgs e)
     {
         Log.Fatal("Disconnected");
         RestartProcess();
     }
 
-    private static async void OnMessageReceived(object? sender, OnMessageReceivedArgs e)
+    private static async void OnMessageReceived(object? _, OnMessageReceivedArgs e)
     {
         try { await HandleMessage(e.ChatMessage); }
         catch (BadStateException) { Client.JoinChannel(Config.Channel); }
@@ -151,6 +151,6 @@ public static class Bot
         timer.Interval = 30 * 1000;
         timer.Enabled = true;
 
-        timer.Elapsed += (s, e) => { if (!Client.IsConnected) RestartProcess(); };
+        timer.Elapsed += (_,_) => { if (!Client.IsConnected) RestartProcess(); };
     }
 }
