@@ -15,12 +15,13 @@ namespace Core
         public static void Initialize()
         {
             Monitor.SetChannelsByName(new List<string> { Config.Channel });
-            Monitor.Start();
 
             Monitor.OnStreamOnline += (_,_) => { StreamOnline = true; Log.Information($"{Config.Channel} is live!"); };
             Monitor.OnStreamOffline += (_,_) => { StreamOnline = false; Log.Information($"{Config.Channel} is offline!"); };
             Monitor.OnServiceStarted += (_,_) => Log.Information("StreamMonitor service started!");
             Monitor.OnServiceStopped += (_,_) => Log.Warning("StreamMonitor service stopped!");
+            
+            Monitor.Start();
         }
     }
 }
