@@ -35,7 +35,7 @@ Fill in your bot account's creditentials:
 Navigate into the `vissb` folder with your previously opened terminal by typing `cd vissb` in the terminal. Or open the terminal again inside the `vissb` folder if you closed it before, then type the following command:
 
 ```
-  dotnet watch run
+  dotnet watch run --no-hot-reload
 ```
 
 The project should build and run itself after that. If you encounter a message saying `'dotnet' is not recognized as an internal or external command`, make sure you installed the **.NET 6.0 SDK** correctly or restart your PC.
@@ -53,12 +53,6 @@ All you have to do is type the following in the chat the bot is running in:
 ```
 
 `botname` being replaced by the name of your bot. i.e if your bot's name is "xDDdBot", you type "!xdddbot update".
-
-When updating, you may come across a message on your terminal that says 
-```
-  Unable to hot reload because of a rude edit. Do you want to restart your app -
-```
-Pick "Always" by pressing `a`. In the future, using the `!botname update` chat command will handle the updating for you, so you don't need to look at the terminal anymore.
 
 
 ## Contact & Reporting issues
