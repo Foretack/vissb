@@ -1,16 +1,16 @@
-﻿using Serilog;
-using Serilog.Core;
-using TwitchLib.Client;
-using TwitchLib.Client.Models;
-using TwitchLib.Communication.Clients;
-using TwitchLib.Communication.Models;
-using TwitchLib.Communication.Events;
-using TwitchLib.Client.Events;
-using TwitchLib.Client.Exceptions;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Reflection;
 using CliWrap;
 using CliWrap.Buffered;
+using Serilog;
+using Serilog.Core;
+using TwitchLib.Client;
+using TwitchLib.Client.Events;
+using TwitchLib.Client.Exceptions;
+using TwitchLib.Client.Models;
+using TwitchLib.Communication.Clients;
+using TwitchLib.Communication.Events;
+using TwitchLib.Communication.Models;
 using ST = System.Timers.Timer;
 
 namespace Core;
@@ -19,7 +19,7 @@ public static class Core
     public static DateTime StartupTime { get; private set; }
     public static string AssemblyName { get; } = Assembly.GetEntryAssembly()?.GetName().Name ?? throw new ArgumentException($"{nameof(AssemblyName)} can not be null.");
 
-    private static LoggingLevelSwitch LogSwitch = new LoggingLevelSwitch();
+    private static readonly LoggingLevelSwitch LogSwitch = new();
     public static async Task Main(string[] args)
     {
         LogSwitch.MinimumLevel = Serilog.Events.LogEventLevel.Information;
@@ -27,7 +27,7 @@ public static class Core
         StartupTime = DateTime.Now;
 
         await Bot.Initialize();
-        Console.ReadLine();
+        _ = Console.ReadLine();
     }
 }
 
@@ -38,31 +38,33 @@ public static class Bot
     private static bool Connected { get; set; } = false;
     public static async Task Initialize()
     {
-        ConnectionCredentials credentials = new ConnectionCredentials(Config.Username, Config.Token);
-        ClientOptions options = new ClientOptions()
+        var credentials = new ConnectionCredentials(Config.Username, Config.Token);
+        var options = new ClientOptions()
         {
             MessagesAllowedInPeriod = 100,
             ThrottlingPeriod = TimeSpan.FromSeconds(30)
         };
-        ReconnectionPolicy policy = new ReconnectionPolicy();
+        var policy = new ReconnectionPolicy();
         policy.SetMaxAttempts(15);
         options.ReconnectionPolicy = policy;
-        WebSocketClient wsClient = new WebSocketClient(options);
-        Client = new TwitchClient(wsClient);
-        Client.AutoReListenOnException = true;
+        var wsClient = new WebSocketClient(options);
+        Client = new TwitchClient(wsClient)
+        {
+            AutoReListenOnException = true
+        };
         Client.Initialize(credentials, Config.Channel);
 
         Client.OnIncorrectLogin += (s, e) => { Log.Fatal(e.Exception, $"The account creditentials you provided are invalid!"); throw e.Exception; };
         Client.OnConnected += (s, e) => { Log.Information($"Connected as {e.BotUsername}"); Connected = true; };
         Client.OnJoinedChannel += (s, e) => { Log.Information($"Joined {e.Channel}"); };
         Client.OnMessageReceived += OnMessageReceived;
-        
+
         Client.OnDisconnected += OnDisconnected;
         Client.OnError += OnError;
         Client.OnConnectionError += OnConnectionError;
 
         int cc = 0;
-        try { Client.Connect(); }
+        try { _ = Client.Connect(); }
         catch (Exception) { await Task.Delay(2500); RestartProcess(); }
         while (!Connected)
         {
@@ -109,7 +111,7 @@ public static class Bot
         if (ircMessage.Message.StartsWith($"!{Config.Username} update")
         && ircMessage.Username == Config.HosterName)
         {
-            var pullResults = await Cli.Wrap("git").WithArguments("pull").ExecuteBufferedAsync();
+            BufferedCommandResult pullResults = await Cli.Wrap("git").WithArguments("pull").ExecuteBufferedAsync();
             string result = pullResults.StandardOutput
                 .Split('\n')
                 .First(x => x.Contains("files changed") || x.Contains("file changed") || x.Contains("Already up to date"));
@@ -132,25 +134,24 @@ public static class Bot
             return;
         }
         if (args[^1].ToLower().Contains(Config.Username))
-        {
             await AskCommand.Run(ircMessage.Username, string.Join(' ', args[..^1]));
-            
-        }
     }
 
     private static void RestartProcess()
     {
         Log.Fatal("Process is restarting...");
-        Process.Start($"./{Core.AssemblyName}", Environment.GetCommandLineArgs());
+        _ = Process.Start($"./{Core.AssemblyName}", Environment.GetCommandLineArgs());
         Environment.Exit(0);
     }
 
     private static void WatchConnection()
     {
-        ST timer = new ST();
-        timer.Interval = 30 * 1000;
-        timer.Enabled = true;
+        var timer = new ST
+        {
+            Interval = 30 * 1000,
+            Enabled = true
+        };
 
-        timer.Elapsed += (_,_) => { if (!Client.IsConnected) RestartProcess(); };
+        timer.Elapsed += (_, _) => { if (!Client.IsConnected) RestartProcess(); };
     }
 }

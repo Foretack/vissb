@@ -7,12 +7,12 @@ using Timers = System.Timers;
 namespace Core;
 public static class AskCommand
 {
-    public static readonly HttpClient Requests = new HttpClient();
+    public static readonly HttpClient Requests = new();
 
     private static readonly string RequestLink = "https://api.openai.com/v1/engines/text-davinci-001/completions";
     private static readonly string[] BlacklistedUsers = { "titlechange_bot", "supibot", "streamelements", "megajumpbot" };
-    private static readonly PriorityQueue<string, int> MessageQueue = new PriorityQueue<string, int>();
-    private static readonly Dictionary<string, (string[], long)> PreviousContext = new Dictionary<string, (string[], long)>();
+    private static readonly PriorityQueue<string, int> MessageQueue = new();
+    private static readonly Dictionary<string, (string[], long)> PreviousContext = new();
     public static async ValueTask Run(string username, string prompt)
     {
         if (StreamMonitor.StreamOnline || BlacklistedUsers.Contains(username)) return;
@@ -22,16 +22,18 @@ public static class AskCommand
             return;
         }
 
-        RequestBody body = new RequestBody();
-        body.prompt = BuildContext(username, prompt);
-        body.max_tokens = 90;
-        body.temperature = 0.5f;
-        body.top_p = 0.3f;
-        body.frequency_penalty = 0.5f;
-        body.presence_penalty = 0;
+        var body = new RequestBody
+        {
+            prompt = BuildContext(username, prompt),
+            max_tokens = 90,
+            temperature = 0.5f,
+            top_p = 0.3f,
+            frequency_penalty = 0.5f,
+            presence_penalty = 0
+        };
 
         string cString = JsonSerializer.Serialize(body);
-        StringContent content = new StringContent(cString, Encoding.UTF8, "application/json");
+        var content = new StringContent(cString, Encoding.UTF8, "application/json");
         HttpResponseMessage response = await Requests.PostAsync(RequestLink, content);
 
         if (!response.IsSuccessStatusCode)
@@ -61,27 +63,29 @@ public static class AskCommand
 
     public static void HandleMessageQueue()
     {
-        Timers::Timer queueTimer = new();
-
-        queueTimer.Interval = 3000;
-        queueTimer.AutoReset = true;
-        queueTimer.Enabled = true;
+        Timers::Timer queueTimer = new()
+        {
+            Interval = 3000,
+            AutoReset = true,
+            Enabled = true
+        };
 
         queueTimer.Elapsed += (s, e) =>
         {
             if (MessageQueue.Count > 0)
-            {
                 Bot.Client.SendMessage(Config.Channel, MessageQueue.Dequeue());
-            }
         };
     }
 
     private static string Filter(this string prompt)
     {
-        if (prompt.Length > 450) prompt = prompt.Substring(0, 450) + "... (too long)";
+        if (prompt.Length > 450) prompt = prompt[..450] + "... (too long)";
         foreach (Regex regex in Regexes.Filters)
         {
-            if (regex.IsMatch(prompt) && regex.Matches(prompt).Count == 1) prompt = prompt.Replace(regex.Match(prompt).Value, " [Filtered] ");
+            if (regex.IsMatch(prompt) && regex.Matches(prompt).Count == 1)
+            {
+                prompt = prompt.Replace(regex.Match(prompt).Value, " [Filtered] ");
+            }
             // .Replace will not work on unique matches (e.g multiple IP addresses in the message). Hence the else if statement.
             else if (regex.IsMatch(prompt) && regex.Matches(prompt).Count > 1)
             {
@@ -136,7 +140,7 @@ public static class AskCommand
 
 public static class Cooldowns
 {
-    private static readonly List<string> CooldownPool = new List<string>();
+    private static readonly List<string> CooldownPool = new();
 
     public static bool OnCooldown(string username) { return CooldownPool.Contains(username); }
     public static void AddCooldown(string username)
@@ -145,7 +149,7 @@ public static class Cooldowns
         Timer? removalTimer = null;
         removalTimer = new Timer(callback =>
         {
-            CooldownPool.Remove(username);
+            _ = CooldownPool.Remove(username);
             Log.Debug($"Removed {username} cooldown");
             removalTimer!.Dispose();
         }, null, Config.AskCommandCooldown * 1000, Timeout.Infinite);
@@ -169,7 +173,7 @@ public static class Regexes
     };
 }
 
-class RequestBody
+internal class RequestBody
 {
     public string prompt { get; set; } = default!;
     public int max_tokens { get; set; }
@@ -180,7 +184,7 @@ class RequestBody
     public string[] stop { get; set; } = default!;
 }
 
-class ResponseBody
+internal class ResponseBody
 {
     public Choice[] choices { get; set; } = default!;
 
