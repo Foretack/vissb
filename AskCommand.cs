@@ -9,7 +9,7 @@ public static class AskCommand
 {
     public static readonly HttpClient Requests = new();
 
-    private static readonly string RequestLink = "https://api.openai.com/v1/engines/text-davinci-001/completions";
+    private static readonly string RequestLink = "https://api.openai.com/v1/engines/text-davinci-003/completions";
     private static readonly string[] BlacklistedUsers = { "titlechange_bot", "supibot", "streamelements", "megajumpbot" };
     private static readonly PriorityQueue<string, int> MessageQueue = new();
     private static readonly Dictionary<string, (string[], long)> PreviousContext = new();
