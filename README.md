@@ -21,7 +21,7 @@ Navigate into the `vissb` folder and copy the `config_template.yml` file. Rename
 
 Fill in your bot account's creditentials & configure the bot to your liking, make sure to leave a space after each colon. 
 
-Some characters need to be escaped as well ({, }, [, ], ,, &, :, *, #, ?, |. -, <. >, =, !, %, @, \.), you can do so by prepending them with \ e.g: \!ping
+Some characters need to be escaped as well ({, }, [, ], ,, &, :, *, #, ?, |. -, <. >, =, !, %, @, \.), e.g: !ping should be '!ping'
 
 [Example of a config](https://i.imgur.com/mdl8QUQ.png) in Notepad++
 

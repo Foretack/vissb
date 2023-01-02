@@ -22,9 +22,9 @@ SecondsUntilForgetContext: 300
 # Error message
 ErrorMessage: eror Sadeg
 
-PingCommand: \!ping
+PingCommand: '!ping'
 # Users can use this command to forcefully make the bot forget their previous conversations
-ForgetCommand: \!forgetwhatisaid
+ForgetCommand: '!forgetwhatisaid'
 
 # Set a daily limit to how many OpenAi tokens can be used, the bot won't reply after hitting this limit. 0 for unlimited
 DailyTokenUsageLimit: 0

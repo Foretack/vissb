@@ -37,6 +37,7 @@ internal sealed class Bot
         _client.OnError += (s, e) => throw e.Exception;
         _client.OnConnectionError += (s, e) => throw new Exception(e.Error.Message);
 
+        _client.Connect();
         _spawnTime = DateTime.Now;
 
         SystemTimer timer = new()
@@ -79,7 +80,7 @@ internal sealed class Bot
         if (args.Length < 2) return;
         if (ConfigLoader.Config.DailyTokenUsageLimit > 0
         && _dailyUsage.Tokens >= ConfigLoader.Config.DailyTokenUsageLimit) return;
-        if (args[0].ToLower().Contains(ConfigLoader.Config.Username))
+        if (args.First().ToLower().Contains(ConfigLoader.Config.Username))
         {
             var response = await OpenAiInteraction.Complete(
                 ircMessage.Username,
@@ -90,7 +91,7 @@ internal sealed class Bot
                 await Notify(response.Item3, ircMessage.Message);
             return;
         }
-        if (args[^0].ToLower().Contains(ConfigLoader.Config.Username))
+        if (args.Last().ToLower().Contains(ConfigLoader.Config.Username))
         {
             var response = await OpenAiInteraction.Complete(
                 ircMessage.Username,
