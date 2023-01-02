@@ -1,0 +1,35 @@
+﻿# Bot's creditentials 
+Username: 
+AccessToken: 
+ClientId:
+# The channel the bot will run in
+Channel: 
+
+# The OpenAi token. https://beta.openai.com/account/api-keys
+OpenAiToken:  Bearer sk-
+# Link for requests
+RequestLink: https://api.openai.com/v1/engines/text-davinci-003/completions
+
+# Cooldown for bot interaction, in seconds
+Cooldown: 60
+# Cooldown message
+OnCooldownMessage: Pepega cooldown
+# The amount of conversations the bot will remember per user
+# Note: The bigger the number the bigger chance of the bot spouting nonsense
+ContextSize: 5
+# Seconds until the bot forgets previous conversations with users
+SecondsUntilForgetContext: 300
+# Error message
+ErrorMessage: eror Sadeg
+
+PingCommand: '!ping'
+# Users can use this command to forcefully make the bot forget their previous conversations
+ForgetCommand: '!forgetwhatisaid'
+
+# Set a daily limit to how many OpenAi tokens can be used, the bot won't reply after hitting this limit. 0 for unlimited
+DailyTokenUsageLimit: 0
+
+# Send a notification to a Discord Webhook when a user's prompt exceeds the specified OpenAi token threshold. Disabled by default
+Notify: false
+TokenThreshold: 240
+NotifyWebhookLink: 
