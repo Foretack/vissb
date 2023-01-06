@@ -80,26 +80,33 @@ internal sealed class Bot
         if (args.Length < 2) return;
         if (ConfigLoader.Config.DailyTokenUsageLimit > 0
         && _dailyUsage.Tokens >= ConfigLoader.Config.DailyTokenUsageLimit) return;
-        if (args.First().ToLower().Contains(ConfigLoader.Config.Username))
+        try
         {
-            var response = await OpenAiInteraction.Complete(
-                ircMessage.Username,
-                ircMessage.Message[args[0].Length..]);
-            _messageQueue.Enqueue(response.Item1, response.Item2);
-            _dailyUsage.Tokens += response.Item3;
-            if (ConfigLoader.Config.Notify && response.Item3 >= ConfigLoader.Config.TokenThreshold)
-                await Notify(response.Item3, ircMessage.Message);
-            return;
+            if (args.First().ToLower().Contains(ConfigLoader.Config.Username))
+            {
+                var response = await OpenAiInteraction.Complete(
+                    ircMessage.Username,
+                    ircMessage.Message[args[0].Length..]);
+                _messageQueue.Enqueue(response.Item1, response.Item2);
+                _dailyUsage.Tokens += response.Item3;
+                if (ConfigLoader.Config.Notify && response.Item3 >= ConfigLoader.Config.TokenThreshold)
+                    await Notify(response.Item3, ircMessage.Message);
+                return;
+            }
+            if (args.Last().ToLower().Contains(ConfigLoader.Config.Username))
+            {
+                var response = await OpenAiInteraction.Complete(
+                    ircMessage.Username,
+                    ircMessage.Message[..(ircMessage.Message.Length - args[^0].Length)]);
+                _messageQueue.Enqueue(response.Item1, response.Item2);
+                _dailyUsage.Tokens += response.Item3;
+                if (ConfigLoader.Config.Notify && response.Item3 >= ConfigLoader.Config.TokenThreshold)
+                    await Notify(response.Item3, ircMessage.Message);
+            }
         }
-        if (args.Last().ToLower().Contains(ConfigLoader.Config.Username))
+        catch (Exception ex)
         {
-            var response = await OpenAiInteraction.Complete(
-                ircMessage.Username,
-                ircMessage.Message[..(ircMessage.Message.Length - args[^0].Length)]);
-            _messageQueue.Enqueue(response.Item1, response.Item2);
-            _dailyUsage.Tokens += response.Item3;
-            if (ConfigLoader.Config.Notify && response.Item3 >= ConfigLoader.Config.TokenThreshold)
-                await Notify(response.Item3, ircMessage.Message);
+            Log.Error(ex, "Exception caught: ");
         }
     }
 
