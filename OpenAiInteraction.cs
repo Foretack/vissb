@@ -9,7 +9,7 @@ internal static class OpenAiInteraction
     private static readonly string _requestLink = ConfigLoader.Config.RequestLink;
     private static readonly Dictionary<string, Queue<Conversation>> _conversations = new();
     private static readonly Dictionary<string, DateTime> _commandLastUsed = new();
-    private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(15) };
+    private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(30) };
     private static readonly List<string> _lastUsers = new(5);
 
     private static readonly string BotUsername = ConfigLoader.Config.Username;
@@ -102,8 +102,8 @@ internal static class OpenAiInteraction
 
         StringBuilder contextHeader = new();
         _ = contextHeader.Append($"[You are in a Twitch chatroom. Your username is {BotUsername}]\n");
-        _ = contextHeader.Append($"[You like the following topics: C#, Rust, Forsen]");
-        _ = contextHeader.Append($"[You strongly dislike the following topics: Anime, Weebs, Furries]");
+        _ = contextHeader.Append($"[You like the following topics: C#, Rust, Forsen]\n");
+        _ = contextHeader.Append($"[You strongly dislike the following topics: Anime, Weebs, Furries]\n\n");
         if (_lastUsers.Count > 0)
         {
             _ = contextHeader.Append($"[The users of this channel are: {string.Join(", ", _lastUsers)}]\n\n");
