@@ -102,7 +102,6 @@ internal static class OpenAiInteraction
 
         StringBuilder contextHeader = new();
         _ = contextHeader.Append($"[You are in a Twitch chatroom. Your username is {BotUsername}]\n");
-        _ = contextHeader.Append($"[You strongly dislike the following topics: Anime, Weebs, Furries, Juicers]\n\n");
         if (_lastUsers.Count > 0)
         {
             _ = contextHeader.Append($"[The users of this channel are: {string.Join(", ", _lastUsers)}]\n\n");
