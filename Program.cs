@@ -23,6 +23,7 @@ public static class Program
         try
         {
             Bot bot = new();
+            StreamMonitor.Initialize();
         }
         catch (Exception ex)
         {
