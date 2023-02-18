@@ -32,9 +32,9 @@ internal static class OpenAiInteraction
             prompt = ContextFrom(username, prompt),
             max_tokens = 90,
             temperature = RandomF(),
-            top_p = (RandomF() * 4) - 2,
+            top_p = RandomF(),
             frequency_penalty = (RandomF() * 4) - 2,
-            presence_penalty = 0,
+            presence_penalty = (RandomF() * 4) - 2,
         };
 
         HttpResponseMessage post;
