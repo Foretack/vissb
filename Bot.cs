@@ -25,8 +25,14 @@ internal sealed class Bot
         WebSocketClient wsClient = new();
         _client = new TwitchClient(wsClient, logger: new LoggerFactory().AddSerilog(Log.Logger).CreateLogger<TwitchClient>());
 
-        try { _client.Initialize(creditentials, ConfigLoader.Config.Channel); }
-        catch (Exception) { throw; }
+        try
+        {
+            _client.Initialize(creditentials, ConfigLoader.Config.Channel);
+        }
+        catch (Exception)
+        {
+            throw;
+        }
 
         _client.OnConnected += (s, e) => Log.Information("Connected as {username}.", e.BotUsername);
         _client.OnJoinedChannel += (s, e) => Log.Information("Joined {channel}.", e.Channel);
@@ -37,7 +43,7 @@ internal sealed class Bot
         _client.OnError += (s, e) => throw e.Exception;
         _client.OnConnectionError += (s, e) => throw new Exception(e.Error.Message);
 
-        _client.Connect();
+        _ = _client.Connect();
         _spawnTime = DateTime.Now;
 
         SystemTimer timer = new()
@@ -51,7 +57,7 @@ internal sealed class Bot
 
     private void Elapsed()
     {
-        if (_messageQueue.TryDequeue(out var str, out _))
+        if (_messageQueue.TryDequeue(out string? str, out _))
         {
             _client.SendMessage(ConfigLoader.Config.Channel, str);
         }
@@ -59,17 +65,21 @@ internal sealed class Bot
 
     private async ValueTask OnMessage(ChatMessage ircMessage)
     {
-        if (StreamMonitor.StreamOnline || _blacklistedUsers.Contains(ircMessage.Username)) return;
-        if (DateTime.Now.Day != _dailyUsage.Day) _dailyUsage = (DateTime.Now.Day, 0);
+        if (StreamMonitor.StreamOnline || _blacklistedUsers.Contains(ircMessage.Username))
+            return;
+        if (DateTime.Now.Day != _dailyUsage.Day)
+            _dailyUsage = (DateTime.Now.Day, 0);
 
         string[] args = ircMessage.Message.Split(' ');
-        if (args.Length == 0) return;
+        if (args.Length == 0)
+            return;
         if (args[0] == ConfigLoader.Config.PingCommand)
         {
             TimeSpan uptime = DateTime.Now - _spawnTime;
             _messageQueue.Enqueue($"{ircMessage.Username}, hi :) {uptime:hh'h'mm'm'ss's'}, {_dailyUsage.Tokens} tokens used today", 15);
             return;
         }
+
         if (args[0] == ConfigLoader.Config.ForgetCommand)
         {
             OpenAiInteraction.ForgetContex(ircMessage.Username);
@@ -77,14 +87,19 @@ internal sealed class Bot
             return;
         }
 
-        if (args.Length < 2) return;
+        if (args.Length < 2)
+            return;
         if (ConfigLoader.Config.DailyTokenUsageLimit > 0
-        && _dailyUsage.Tokens >= ConfigLoader.Config.DailyTokenUsageLimit) return;
+        && _dailyUsage.Tokens >= ConfigLoader.Config.DailyTokenUsageLimit)
+        {
+            return;
+        }
+
         try
         {
             if (args.First().ToLower().Contains(ConfigLoader.Config.Username))
             {
-                var response = await OpenAiInteraction.Complete(
+                (string, byte, int) response = await OpenAiInteraction.Complete(
                     ircMessage.Username,
                     ircMessage.Message[args[0].Length..]);
                 _messageQueue.Enqueue(response.Item1, response.Item2);
@@ -93,9 +108,10 @@ internal sealed class Bot
                     await Notify(response.Item3, ircMessage.Message);
                 return;
             }
+
             if (args.Last().ToLower().Contains(ConfigLoader.Config.Username))
             {
-                var response = await OpenAiInteraction.Complete(
+                (string, byte, int) response = await OpenAiInteraction.Complete(
                     ircMessage.Username,
                     ircMessage.Message[..(ircMessage.Message.Length - args[^0].Length)]);
                 _messageQueue.Enqueue(response.Item1, response.Item2);
@@ -112,7 +128,8 @@ internal sealed class Bot
 
     private static async Task Notify(int tokens, string prompt)
     {
-        if (string.IsNullOrEmpty(ConfigLoader.Config.NotifyWebhookLink)) return;
+        if (string.IsNullOrEmpty(ConfigLoader.Config.NotifyWebhookLink))
+            return;
         var http = new HttpClient();
         var message = new
         {
@@ -138,6 +155,6 @@ internal sealed class Bot
                 }
             }
         };
-        await http.PostAsJsonAsync(ConfigLoader.Config.NotifyWebhookLink, message);
+        _ = await http.PostAsJsonAsync(ConfigLoader.Config.NotifyWebhookLink, message);
     }
 }

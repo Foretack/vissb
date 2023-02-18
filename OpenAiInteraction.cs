@@ -7,22 +7,33 @@ internal static class OpenAiInteraction
 {
     private static readonly string _requestLink = ConfigLoader.Config.RequestLink;
     private static readonly Dictionary<string, Queue<Conversation>> _conversations = new();
-    private static readonly Dictionary<string, DateTime> _lastUsed = new();
+    private static readonly Dictionary<string, DateTime> _commandLastUsed = new();
     private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(15) };
+    private static readonly List<string> _lastUsers = new(5);
+
+    private static readonly string BotUsername = ConfigLoader.Config.Username;
 
     public static async Task<(string, byte, int)> Complete(string username, string prompt)
     {
         if (!_http.DefaultRequestHeaders.Contains("Authorization"))
             _http.DefaultRequestHeaders.Add("Authorization", ConfigLoader.Config.OpenAiToken);
-        if (IsOnCooldown(username)) return (username + ' ' + ConfigLoader.Config.OnCooldownMessage, 10, 0);
+        if (IsOnCooldown(username))
+            return (username + ' ' + ConfigLoader.Config.OnCooldownMessage, 10, 0);
+
+        if (_lastUsers.Count == 5)
+        {
+            _lastUsers.Clear();
+        }
+
+        _lastUsers.Add(username);
 
         var reqObj = new
         {
             prompt = ContextFrom(username, prompt),
             max_tokens = 90,
             temperature = RandomF(),
-            top_p = RandomF(),
-            frequency_penalty = RandomF(),
+            top_p = (RandomF() * 4) - 2,
+            frequency_penalty = (RandomF() * 4) - 2,
             presence_penalty = 0,
         };
 
@@ -49,7 +60,7 @@ internal static class OpenAiInteraction
             return ($"{username}, {ConfigLoader.Config.ErrorMessage} ({post.StatusCode})", 1, 0);
         }
 
-        var response = await post.Content.ReadFromJsonAsync<OpenAiResponse>();
+        OpenAiResponse? response = await post.Content.ReadFromJsonAsync<OpenAiResponse>();
         if (response is null)
         {
             Log.Warning("Request failed (failed to serialize)");
@@ -62,7 +73,7 @@ internal static class OpenAiInteraction
             (replyRaw.ToLower().Contains(username)
                 ? string.Empty
                 : username + ", ")
-            + replyRaw[start <= 0 || start > 10 ? 0.. : start..];
+            + replyRaw[start is <= 0 or > 10 ? 0.. : start..];
 
         if (replyText.Length > 475)
             replyText = replyText[..475] + " ... (too long)";
@@ -77,21 +88,26 @@ internal static class OpenAiInteraction
 
     private static string ContextFrom(string username, string prompt)
     {
-        if (_lastUsed.TryGetValue(username, out var time))
+        if (_commandLastUsed.TryGetValue(username, out DateTime time))
         {
             if ((DateTime.Now - time).TotalSeconds > ConfigLoader.Config.SecondsUntilForgetContext)
                 _ = _conversations.Remove(username);
         }
+
         if (!_conversations.ContainsKey(username))
         {
-            return $"\n{username}: {prompt}\n{ConfigLoader.Config.Username}: ";
+            return $"\n{username}: {prompt}\n{BotUsername}: ";
         }
 
-        var built = string.Join('\n', _conversations[username]
+        string contextHeader = _lastUsers.Count == 0
+            ? string.Empty
+            : $"[You are in a Twitch chatroom. Your username is {BotUsername}]\n" +
+              $"[The users of this channel are: {string.Join(", ", _lastUsers)}]\n\n";
+        string built = string.Join('\n', _conversations[username]
                 .Where(x => x is not null)
-                .Select(x => $"{username}: {x.Question}\n{ConfigLoader.Config.Username}: {x.Response}"));
+                .Select(x => $"{username}: {x.Question}\n{BotUsername}: {x.Response}"));
 
-        return built + $"\n{username}: {prompt}\n{ConfigLoader.Config.Username}: ";
+        return contextHeader + built + $"\n{username}: {prompt}\n{BotUsername}: ";
     }
 
     public static void ForgetContex(string username)
@@ -101,16 +117,18 @@ internal static class OpenAiInteraction
 
     private static bool IsOnCooldown(string username)
     {
-        if (_lastUsed.TryGetValue(username, out var time))
+        if (_commandLastUsed.TryGetValue(username, out DateTime time))
         {
-            if ((DateTime.Now - time).TotalSeconds < ConfigLoader.Config.Cooldown) return true;
+            if ((DateTime.Now - time).TotalSeconds < ConfigLoader.Config.Cooldown)
+                return true;
         }
+
         return false;
     }
 
     private static string Filter(string text)
     {
-        foreach (var f in Filters)
+        foreach (Regex f in Filters)
         {
             text = f.Replace(text, "[Filtered]");
         }
@@ -120,27 +138,30 @@ internal static class OpenAiInteraction
 
     private static void AddConversation(string username, Conversation convo)
     {
-        if (_conversations.TryGetValue(username, out var queue))
+        if (_conversations.TryGetValue(username, out Queue<Conversation>? queue))
         {
             if (queue.Count == ConfigLoader.Config.ContextSize)
             {
                 _ = queue.Dequeue();
             }
+
             queue.Enqueue(convo);
             return;
         }
+
         _conversations.Add(username, new());
         _conversations[username].Enqueue(convo);
     }
 
     private static void AddCooldown(string username)
     {
-        if (_lastUsed.ContainsKey(username))
+        if (_commandLastUsed.ContainsKey(username))
         {
-            _lastUsed[username] = DateTime.Now;
+            _commandLastUsed[username] = DateTime.Now;
             return;
         }
-        _lastUsed.Add(username, DateTime.Now);
+
+        _commandLastUsed.Add(username, DateTime.Now);
     }
 
     private static readonly Regex[] Filters =
@@ -152,7 +173,10 @@ internal static class OpenAiInteraction
         new(@"\b(negro|coon)\b", RegexOptions.IgnoreCase | RegexOptions.Compiled, TimeSpan.FromMilliseconds(200))
     };
 
-    private static float RandomF() => Random.Shared.NextSingle();
+    private static float RandomF()
+    {
+        return Random.Shared.NextSingle();
+    }
 }
 
 internal sealed record Conversation(string Question, string Response)
