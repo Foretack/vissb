@@ -10,7 +10,7 @@ internal static class OpenAiInteraction
     private static readonly Dictionary<string, Queue<Conversation>> _conversations = new();
     private static readonly Dictionary<string, DateTime> _commandLastUsed = new();
     private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(30) };
-    private static readonly List<string> _lastUsers = new(5);
+    private static readonly List<string> _lastUsers = new(7);
 
     private static readonly string BotUsername = ConfigLoader.Config.Username;
 
@@ -21,12 +21,15 @@ internal static class OpenAiInteraction
         if (IsOnCooldown(username))
             return (username + ' ' + ConfigLoader.Config.OnCooldownMessage, 10, 0);
 
-        if (_lastUsers.Count == 5)
+        if (_lastUsers.Count == 7)
         {
             _lastUsers.Clear();
         }
 
-        _lastUsers.Add(username);
+        if (!_lastUsers.Contains(username))
+        {
+            _lastUsers.Add(username);
+        }
 
         var reqObj = new
         {
@@ -35,7 +38,7 @@ internal static class OpenAiInteraction
             temperature = RandomF(),
             top_p = RandomF(),
             frequency_penalty = (RandomF() * 4) - 2,
-            presence_penalty = (RandomF() * 4) - 2,
+            presence_penalty = 0,
         };
 
         HttpResponseMessage post;
