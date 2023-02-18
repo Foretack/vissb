@@ -1,4 +1,5 @@
 ﻿using System.Net.Http.Json;
+using System.Text;
 using System.Text.RegularExpressions;
 using Serilog;
 
@@ -99,10 +100,15 @@ internal static class OpenAiInteraction
             return $"\n{username}: {prompt}\n{BotUsername}: ";
         }
 
-        string contextHeader = _lastUsers.Count == 0
-            ? string.Empty
-            : $"[You are in a Twitch chatroom. Your username is {BotUsername}]\n" +
-              $"[The users of this channel are: {string.Join(", ", _lastUsers)}]\n\n";
+        StringBuilder contextHeader = new();
+        _ = contextHeader.Append($"[You are in a Twitch chatroom. Your username is {BotUsername}]\n");
+        _ = contextHeader.Append($"[You like the following topics: C#, Rust, Forsen]");
+        _ = contextHeader.Append($"[You strongly dislike the following topics: Anime, Weebs, Furries]");
+        if (_lastUsers.Count > 0)
+        {
+            _ = contextHeader.Append($"[The users of this channel are: {string.Join(", ", _lastUsers)}]\n\n");
+        }
+
         string built = string.Join('\n', _conversations[username]
                 .Where(x => x is not null)
                 .Select(x => $"{username}: {x.Question}\n{BotUsername}: {x.Response}"));
