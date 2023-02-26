@@ -9,7 +9,7 @@ using SystemTimer = System.Timers.Timer;
 namespace vissb;
 internal sealed class Bot
 {
-    private static readonly string[] _blacklistedUsers = { "titlechange_bot", "supibot", "streamelements", "megajumpbot" };
+    private static readonly string[] _blacklistedUsers = { "titlechange_bot", "supibot", "streamelements", "megajumpbot", "pajbot" };
     private static (int Day, int Tokens) _dailyUsage = (DateTime.Now.Day, 0);
     private readonly PriorityQueue<string, byte> _messageQueue = new();
     private readonly TwitchClient _client;
