@@ -1,23 +1,27 @@
 ﻿using System.Text.Json.Serialization;
 
 namespace vissb;
-public sealed record Choice(
-    [property: JsonPropertyName("text")] string Text,
-    [property: JsonPropertyName("index")] int Index,
-    [property: JsonPropertyName("logprobs")] object Logprobs,
-    [property: JsonPropertyName("finish_reason")] string FinishReason
+public record Choice(
+        [property: JsonPropertyName("message")] Message Message,
+        [property: JsonPropertyName("finish_reason")] string FinishReason,
+        [property: JsonPropertyName("index")] int Index
+    );
+
+public record Message(
+    [property: JsonPropertyName("role")] string Role,
+    [property: JsonPropertyName("content")] string Content
 );
 
-public sealed record OpenAiResponse(
+public record OpenAiResponse(
     [property: JsonPropertyName("id")] string Id,
     [property: JsonPropertyName("object")] string Object,
     [property: JsonPropertyName("created")] int Created,
     [property: JsonPropertyName("model")] string Model,
-    [property: JsonPropertyName("choices")] IReadOnlyList<Choice> Choices,
-    [property: JsonPropertyName("usage")] Usage Usage
+    [property: JsonPropertyName("usage")] Usage Usage,
+    [property: JsonPropertyName("choices")] IReadOnlyList<Choice> Choices
 );
 
-public sealed record Usage(
+public record Usage(
     [property: JsonPropertyName("prompt_tokens")] int PromptTokens,
     [property: JsonPropertyName("completion_tokens")] int CompletionTokens,
     [property: JsonPropertyName("total_tokens")] int TotalTokens

@@ -62,7 +62,7 @@ internal static class OpenAiInteraction
             return ($"{username}, {ConfigLoader.Config.ErrorMessage} (failed to serialize)", 1, 0);
         }
 
-        string replyRaw = response.Choices[0].Text;
+        string replyRaw = response.Choices[0].Message.Content;
         int start = replyRaw.IndexOf("\n\n");
         string replyText =
             (replyRaw.ToLower().Contains(username)
