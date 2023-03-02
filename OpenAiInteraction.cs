@@ -90,11 +90,13 @@ internal static class OpenAiInteraction
         {
             yield return (username, prompt);
         }
-
-        foreach (var convo in _conversations[username])
+        else
         {
-            yield return (username, convo.Question);
-            yield return (ConfigLoader.Config.Username, convo.Response);
+            foreach (var convo in _conversations[username])
+            {
+                yield return (username, convo.Question);
+                yield return (ConfigLoader.Config.Username, convo.Response);
+            }
         }
     }
 
