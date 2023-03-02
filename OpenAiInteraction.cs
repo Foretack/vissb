@@ -19,7 +19,7 @@ internal static class OpenAiInteraction
 
 
         var messages = ContextFrom(username, prompt)
-            .Select(x => new { role = $"user:{x.Item1}", content = x.Item2}).ToArray();
+            .Select(x => new { role = x.Item1, content = x.Item2}).ToArray();
         var reqObj = new
         {
             model = "gpt-3.5-turbo",
