@@ -1,4 +1,5 @@
 ﻿using System.Net.Http.Json;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 using Serilog;
 
@@ -29,6 +30,7 @@ internal static class OpenAiInteraction
             frequency_penalty = RandomF(),
             presence_penalty = 0,
         };
+        Log.Debug("Sending payload: {p}\n to {link}", JsonSerializer.Serialize(reqObj), _requestLink);
 
         HttpResponseMessage post;
 
