@@ -16,9 +16,13 @@ internal static class OpenAiInteraction
             _http.DefaultRequestHeaders.Add("Authorization", ConfigLoader.Config.OpenAiToken);
         if (IsOnCooldown(username)) return (username + ' ' + ConfigLoader.Config.OnCooldownMessage, 10, 0);
 
+
+        var messages = ContextFrom(username, prompt)
+            .Select(x => new { role = $"user:{x.Item1}", content = x.Item2}).ToArray();
         var reqObj = new
         {
-            prompt = ContextFrom(username, prompt),
+            model = "gpt-3.5-turbo",
+            messages,
             max_tokens = 90,
             temperature = RandomF(),
             top_p = RandomF(),
@@ -62,7 +66,7 @@ internal static class OpenAiInteraction
             (replyRaw.ToLower().Contains(username)
                 ? string.Empty
                 : username + ", ")
-            + replyRaw[start <= 0 || start > 10 ? 0.. : start..];
+            + replyRaw[start is <= 0 or > 10 ? 0.. : start..];
 
         if (replyText.Length > 475)
             replyText = replyText[..475] + " ... (too long)";
@@ -75,7 +79,7 @@ internal static class OpenAiInteraction
         return (replyText, 25, response.Usage.TotalTokens);
     }
 
-    private static string ContextFrom(string username, string prompt)
+    private static IEnumerable<(string, string)> ContextFrom(string username, string prompt)
     {
         if (_lastUsed.TryGetValue(username, out var time))
         {
@@ -84,14 +88,14 @@ internal static class OpenAiInteraction
         }
         if (!_conversations.ContainsKey(username))
         {
-            return $"\n{username}: {prompt}\n{ConfigLoader.Config.Username}: ";
+            yield return (username, prompt);
         }
 
-        var built = string.Join('\n', _conversations[username]
-                .Where(x => x is not null)
-                .Select(x => $"{username}: {x.Question}\n{ConfigLoader.Config.Username}: {x.Response}"));
-
-        return built + $"\n{username}: {prompt}\n{ConfigLoader.Config.Username}: ";
+        foreach (var convo in _conversations[username])
+        {
+            yield return (username, convo.Question);
+            yield return (ConfigLoader.Config.Username, convo.Response);
+        }
     }
 
     public static void ForgetContex(string username)
