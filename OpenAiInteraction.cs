@@ -88,14 +88,14 @@ internal static class OpenAiInteraction
         }
         if (!_conversations.ContainsKey(username))
         {
-            yield return (username, prompt);
+            yield return ("user", prompt);
         }
         else
         {
             foreach (var convo in _conversations[username])
             {
-                yield return (username, convo.Question);
-                yield return (ConfigLoader.Config.Username, convo.Response);
+                yield return ("user", convo.Question);
+                yield return ("assistant", convo.Response);
             }
         }
     }
