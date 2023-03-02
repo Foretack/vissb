@@ -30,7 +30,7 @@ internal static class OpenAiInteraction
             frequency_penalty = RandomF(),
             presence_penalty = 0,
         };
-        Log.Debug("Sending payload: {p}\n to {link}", JsonSerializer.Serialize(reqObj), _requestLink);
+        Log.Information("Sending payload: {p}\n to {link}", JsonSerializer.Serialize(reqObj), _requestLink);
 
         HttpResponseMessage post;
 
