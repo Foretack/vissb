@@ -6,7 +6,8 @@ namespace vissb;
 internal static class OpenAiInteraction
 {
     private static readonly string _requestLink = ConfigLoader.Config.RequestLink;
-    private static readonly Dictionary<string, Queue<Conversation>> _conversations = new();
+    //private static readonly Dictionary<string, Queue<Conversation>> _conversations = new();
+    private static readonly Queue<Conversation> _conversations = new();
     private static readonly Dictionary<string, DateTime> _lastUsed = new();
     private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(15) };
 
@@ -68,7 +69,7 @@ internal static class OpenAiInteraction
             replyText = replyText[..475] + " ... (too long)";
         replyText = Filter(replyText);
 
-        AddConversation(username, (prompt, replyText));
+        AddConversation((prompt, replyText));
         if (username != ConfigLoader.Config.Channel)
             AddCooldown(username);
 
@@ -77,26 +78,26 @@ internal static class OpenAiInteraction
 
     private static string ContextFrom(string username, string prompt)
     {
-        if (_lastUsed.TryGetValue(username, out var time))
-        {
-            if ((DateTime.Now - time).TotalSeconds > ConfigLoader.Config.SecondsUntilForgetContext)
-                _ = _conversations.Remove(username);
-        }
-        if (!_conversations.ContainsKey(username))
+        //if (_lastUsed.TryGetValue(username, out var time))
+        //{
+        //    if ((DateTime.Now - time).TotalSeconds > ConfigLoader.Config.SecondsUntilForgetContext)
+        //        _ = _conversations.Remove(username);
+        //}
+        if (_conversations.Count == 0)
         {
             return $"\n{username}: {prompt}\n{ConfigLoader.Config.Username}: ";
         }
 
-        var built = string.Join('\n', _conversations[username]
+        var built = string.Join('\n', _conversations
                 .Where(x => x is not null)
                 .Select(x => $"{username}: {x.Question}\n{ConfigLoader.Config.Username}: {x.Response}"));
 
         return built + $"\n{username}: {prompt}\n{ConfigLoader.Config.Username}: ";
     }
 
-    public static void ForgetContex(string username)
+    public static void ForgetContex()
     {
-        _ = _conversations.Remove(username);
+        _conversations.Clear();
     }
 
     private static bool IsOnCooldown(string username)
@@ -118,19 +119,13 @@ internal static class OpenAiInteraction
         return text;
     }
 
-    private static void AddConversation(string username, Conversation convo)
+    private static void AddConversation(Conversation convo)
     {
-        if (_conversations.TryGetValue(username, out var queue))
+        if (_conversations.Count >= ConfigLoader.Config.ContextSize)
         {
-            if (queue.Count == ConfigLoader.Config.ContextSize)
-            {
-                _ = queue.Dequeue();
-            }
-            queue.Enqueue(convo);
-            return;
+            _ = _conversations.Dequeue();
         }
-        _conversations.Add(username, new());
-        _conversations[username].Enqueue(convo);
+        _conversations.Enqueue(convo);
     }
 
     private static void AddCooldown(string username)

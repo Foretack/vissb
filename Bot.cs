@@ -81,7 +81,7 @@ internal sealed class Bot
         }
         if (args[0] == ConfigLoader.Config.ForgetCommand)
         {
-            OpenAiInteraction.ForgetContex(ircMessage.Username);
+            OpenAiInteraction.ForgetContex();
             _messageQueue.Enqueue($"{ircMessage.Username}, 🗑 ✅ ", 15);
             return;
         }
