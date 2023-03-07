@@ -90,9 +90,9 @@ internal static class OpenAiInteraction
 
         var built = string.Join('\n', _conversations
                 .Where(x => x is not null)
-                .Select(x => $"{username}: {x.Question}\n{ConfigLoader.Config.Username}: {x.Response}"));
+                .Select(x => $"{username}: {x.Question}\n{ConfigLoader.Config.Username}: {x.Response}\n"));
 
-        return built + $"\n{username}: {prompt}\n{ConfigLoader.Config.Username}: ";
+        return built + $"\n{username}: {prompt}\n{ConfigLoader.Config.Username}: \n";
     }
 
     public static void ForgetContex()
