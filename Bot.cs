@@ -1,4 +1,5 @@
 ﻿using System.Net.Http.Json;
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using TwitchLib.Client;
@@ -9,6 +10,7 @@ using SystemTimer = System.Timers.Timer;
 namespace vissb;
 internal sealed class Bot
 {
+    private static readonly Regex _braille = new(@"[\u2580-\u259F]|[\u2801-\u2880]|⣿", RegexOptions.Compiled, TimeSpan.FromMilliseconds(50));
     private static readonly string[] _blacklistedUsers = { "titlechange_bot", "supibot", "streamelements", "megajumpbot", "pajbot" };
     private static (int Day, int Tokens) _dailyUsage = (DateTime.Now.Day, 0);
     private readonly PriorityQueue<string, byte> _messageQueue = new();
@@ -67,6 +69,8 @@ internal sealed class Bot
     {
         if (StreamMonitor.StreamOnline || _blacklistedUsers.Contains(ircMessage.Username))
             return;
+        if (_braille.IsMatch(ircMessage.Message))
+            return;
         if (DateTime.Now.Day != _dailyUsage.Day)
             _dailyUsage = (DateTime.Now.Day, 0);
 
@@ -79,6 +83,7 @@ internal sealed class Bot
             _messageQueue.Enqueue($"{ircMessage.Username}, hi :) {uptime:hh'h'mm'm'ss's'}, {_dailyUsage.Tokens} tokens used today", 15);
             return;
         }
+
         if (args[0] == ConfigLoader.Config.ForgetCommand)
         {
             OpenAiInteraction.ForgetContex(ircMessage.Username);
@@ -100,22 +105,12 @@ internal sealed class Bot
             {
                 (string, byte, int) response = await OpenAiInteraction.Complete(
                     ircMessage.Username,
-                    ircMessage.Message[args[0].Length..]);
+                    ircMessage.Message);
                 _messageQueue.Enqueue(response.Item1, response.Item2);
                 _dailyUsage.Tokens += response.Item3;
                 if (ConfigLoader.Config.Notify && response.Item3 >= ConfigLoader.Config.TokenThreshold)
                     await Notify(response.Item3, ircMessage.Message);
                 return;
-            }
-            if (args.Last().ToLower().Contains(ConfigLoader.Config.Username))
-            {
-                (string, byte, int) response = await OpenAiInteraction.Complete(
-                    ircMessage.Username,
-                    ircMessage.Message[..(ircMessage.Message.Length - args[^0].Length)]);
-                _messageQueue.Enqueue(response.Item1, response.Item2);
-                _dailyUsage.Tokens += response.Item3;
-                if (ConfigLoader.Config.Notify && response.Item3 >= ConfigLoader.Config.TokenThreshold)
-                    await Notify(response.Item3, ircMessage.Message);
             }
         }
         catch (Exception ex)
