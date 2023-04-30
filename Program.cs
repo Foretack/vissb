@@ -1,6 +1,7 @@
 ﻿global using static vissb.ConfigLoader;
 using Serilog;
 using Serilog.Core;
+using Serilog.Events;
 
 namespace vissb;
 public static class Program
@@ -10,27 +11,24 @@ public static class Program
     private static readonly LoggingLevelSwitch LogSwitch = new();
     public static async Task Main()
     {
-        LogSwitch.MinimumLevel = Serilog.Events.LogEventLevel.Information;
+        LogSwitch.MinimumLevel = LogEventLevel.Information;
         Log.Logger = new LoggerConfiguration().MinimumLevel.ControlledBy(LogSwitch).WriteTo.Console().CreateLogger();
         StartupTime = DateTime.Now;
 
-        await Start();
+        Bot bot = new();
+        _ = await bot.Connect();
 
-        _ = Console.ReadLine();
-    }
+        while (true)
+        {
+            string? input = Console.ReadLine();
+            if (string.IsNullOrEmpty(input))
+                continue;
 
-    private static async Task Start()
-    {
-        try
-        {
-            Bot bot = new();
-            StreamMonitor.Initialize();
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Restarting bot");
-            await Task.Delay(TimeSpan.FromSeconds(30));
-            await Start();
+            if (Enum.TryParse(input, out LogEventLevel level))
+            {
+                LogSwitch.MinimumLevel = level;
+                Console.WriteLine($"Switching logging level to: {level}");
+            }
         }
     }
 }
