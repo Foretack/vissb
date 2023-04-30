@@ -5,7 +5,7 @@ using Serilog;
 namespace vissb;
 internal static class OpenAiInteraction
 {
-    private static readonly string _requestLink = ConfigLoader.Config.RequestLink;
+    private static readonly string _requestLink = ConfigLoader.AppConfig.RequestLink;
     private static readonly Dictionary<string, Queue<Conversation>> _conversations = new();
     private static readonly Dictionary<string, DateTime> _lastUsed = new();
     private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(15) };
@@ -13,8 +13,8 @@ internal static class OpenAiInteraction
     public static async Task<(string, byte, int)> Complete(string username, string prompt)
     {
         if (!_http.DefaultRequestHeaders.Contains("Authorization"))
-            _http.DefaultRequestHeaders.Add("Authorization", ConfigLoader.Config.OpenAiToken);
-        if (IsOnCooldown(username)) return (username + ' ' + ConfigLoader.Config.OnCooldownMessage, 10, 0);
+            _http.DefaultRequestHeaders.Add("Authorization", ConfigLoader.AppConfig.OpenAiToken);
+        if (IsOnCooldown(username)) return (username + ' ' + ConfigLoader.AppConfig.OnCooldownMessage, 10, 0);
 
         var reqObj = new
         {
@@ -35,25 +35,25 @@ internal static class OpenAiInteraction
         catch (TimeoutException)
         {
             Log.Warning("Request timed out");
-            return ($"{username}, {ConfigLoader.Config.ErrorMessage} (timed out)", 1, 0);
+            return ($"{username}, {ConfigLoader.AppConfig.ErrorMessage} (timed out)", 1, 0);
         }
         catch (Exception ex)
         {
             Log.Error("Request failed", ex);
-            return ($"{username}, {ConfigLoader.Config.ErrorMessage} ({ex.Message})", 1, 0);
+            return ($"{username}, {ConfigLoader.AppConfig.ErrorMessage} ({ex.Message})", 1, 0);
         }
 
         if (!post.IsSuccessStatusCode)
         {
             Log.Warning("Request failed ({code})", post.StatusCode);
-            return ($"{username}, {ConfigLoader.Config.ErrorMessage} ({post.StatusCode})", 1, 0);
+            return ($"{username}, {ConfigLoader.AppConfig.ErrorMessage} ({post.StatusCode})", 1, 0);
         }
 
         var response = await post.Content.ReadFromJsonAsync<OpenAiResponse>();
         if (response is null)
         {
             Log.Warning("Request failed (failed to serialize)");
-            return ($"{username}, {ConfigLoader.Config.ErrorMessage} (failed to serialize)", 1, 0);
+            return ($"{username}, {ConfigLoader.AppConfig.ErrorMessage} (failed to serialize)", 1, 0);
         }
 
         string replyRaw = response.Choices[0].Text;
@@ -69,7 +69,7 @@ internal static class OpenAiInteraction
         replyText = Filter(replyText);
 
         AddConversation(username, (prompt, replyText));
-        if (username != ConfigLoader.Config.Channel)
+        if (username != ConfigLoader.AppConfig.Channel)
             AddCooldown(username);
 
         return (replyText, 25, response.Usage.TotalTokens);
@@ -79,19 +79,19 @@ internal static class OpenAiInteraction
     {
         if (_lastUsed.TryGetValue(username, out var time))
         {
-            if ((DateTime.Now - time).TotalSeconds > ConfigLoader.Config.SecondsUntilForgetContext)
+            if ((DateTime.Now - time).TotalSeconds > ConfigLoader.AppConfig.SecondsUntilForgetContext)
                 _ = _conversations.Remove(username);
         }
         if (!_conversations.ContainsKey(username))
         {
-            return $"\n{username}: {prompt}\n{ConfigLoader.Config.Username}: ";
+            return $"\n{username}: {prompt}\n{ConfigLoader.AppConfig.Username}: ";
         }
 
         var built = string.Join('\n', _conversations[username]
                 .Where(x => x is not null)
-                .Select(x => $"{username}: {x.Question}\n{ConfigLoader.Config.Username}: {x.Response}"));
+                .Select(x => $"{username}: {x.Question}\n{ConfigLoader.AppConfig.Username}: {x.Response}"));
 
-        return built + $"\n{username}: {prompt}\n{ConfigLoader.Config.Username}: ";
+        return built + $"\n{username}: {prompt}\n{ConfigLoader.AppConfig.Username}: ";
     }
 
     public static void ForgetContex(string username)
@@ -103,7 +103,7 @@ internal static class OpenAiInteraction
     {
         if (_lastUsed.TryGetValue(username, out var time))
         {
-            if ((DateTime.Now - time).TotalSeconds < ConfigLoader.Config.Cooldown) return true;
+            if ((DateTime.Now - time).TotalSeconds < ConfigLoader.AppConfig.Cooldown) return true;
         }
         return false;
     }
@@ -122,7 +122,7 @@ internal static class OpenAiInteraction
     {
         if (_conversations.TryGetValue(username, out var queue))
         {
-            if (queue.Count == ConfigLoader.Config.ContextSize)
+            if (queue.Count == ConfigLoader.AppConfig.ContextSize)
             {
                 _ = queue.Dequeue();
             }

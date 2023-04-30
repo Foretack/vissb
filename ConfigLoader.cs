@@ -1,11 +1,10 @@
 ﻿using Config.Net;
 
-namespace vissb
+namespace vissb;
+
+internal static class ConfigLoader
 {
-    internal static class ConfigLoader
-    {
-        public static IAppConfig Config { get; } = new ConfigurationBuilder<IAppConfig>()
-            .UseYamlFile("config.yml")
-            .Build();
-    }
+    public static IAppConfig AppConfig { get; } = new ConfigurationBuilder<IAppConfig>()
+        .UseYamlFile("config.yml")
+        .Build();
 }
