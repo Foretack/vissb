@@ -1,4 +1,5 @@
-﻿using Serilog;
+﻿global using static vissb.ConfigLoader;
+using Serilog;
 using Serilog.Core;
 
 namespace vissb;

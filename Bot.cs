@@ -1,10 +1,9 @@
 ﻿using System.Net.Http.Json;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
+using MiniTwitch.Irc;
+using MiniTwitch.Irc.Models;
 using Serilog;
-using TwitchLib.Client;
-using TwitchLib.Client.Models;
-using TwitchLib.Communication.Clients;
 using SystemTimer = System.Timers.Timer;
 
 namespace vissb;
@@ -14,38 +13,23 @@ internal sealed class Bot
     private static readonly string[] _blacklistedUsers = { "titlechange_bot", "supibot", "streamelements", "megajumpbot", "pajbot" };
     private static (int Day, int Tokens) _dailyUsage = (DateTime.Now.Day, 0);
     private readonly PriorityQueue<string, byte> _messageQueue = new();
-    private readonly TwitchClient _client;
+    private readonly IrcClient _client;
     private readonly DateTime _spawnTime;
 
     public Bot()
     {
-        var creditentials = new ConnectionCredentials(
-            ConfigLoader.Config.Username,
-            ConfigLoader.Config.AccessToken);
-
-
-        WebSocketClient wsClient = new();
-        _client = new TwitchClient(wsClient, logger: new LoggerFactory().AddSerilog(Log.Logger).CreateLogger<TwitchClient>());
-
-        try
+        _client = new(options =>
         {
-            _client.Initialize(creditentials, ConfigLoader.Config.Channel);
-        }
-        catch (Exception)
+            options.Username = AppConfig.Username;
+            options.OAuth = AppConfig.AccessToken;
+            options.Logger = new LoggerFactory().AddSerilog(Log.Logger);
+        });
+
+        _client.OnConnect += async () =>
         {
-            throw;
-        }
-
-        _client.OnConnected += (s, e) => Log.Information("Connected as {username}.", e.BotUsername);
-        _client.OnJoinedChannel += (s, e) => Log.Information("Joined {channel}.", e.Channel);
-        _client.OnMessageReceived += async (s, e) => await OnMessage(e.ChatMessage);
-
-        _client.OnIncorrectLogin += (_, _) => throw new Exception("The account creditentials you provided are invalid.");
-        _client.OnDisconnected += (_, _) => throw new Exception("Disconnected.");
-        _client.OnError += (s, e) => throw e.Exception;
-        _client.OnConnectionError += (s, e) => throw new Exception(e.Error.Message);
-
-        _ = _client.Connect();
+            _ = await _client.JoinChannel(AppConfig.Channel);
+        };
+        _client.OnMessage += OnMessage;
         _spawnTime = DateTime.Now;
 
         SystemTimer timer = new()
@@ -57,71 +41,63 @@ internal sealed class Bot
         timer.Elapsed += (_, _) => Elapsed();
     }
 
-    private void Elapsed()
+    public Task<bool> Connect() => _client.ConnectAsync();
+
+    private async void Elapsed()
     {
         if (_messageQueue.TryDequeue(out string? str, out _))
         {
-            _client.SendMessage(ConfigLoader.Config.Channel, str);
+            await _client.SendMessage(AppConfig.Channel, str);
         }
     }
 
-    private async ValueTask OnMessage(ChatMessage ircMessage)
+    private async ValueTask OnMessage(Privmsg message)
     {
-        if (StreamMonitor.StreamOnline || _blacklistedUsers.Contains(ircMessage.Username))
+        if (StreamMonitor.StreamOnline || _blacklistedUsers.Contains(message.Author.Name))
             return;
-        if (_braille.IsMatch(ircMessage.Message))
+        if (_braille.IsMatch(message.Content))
             return;
         if (DateTime.Now.Day != _dailyUsage.Day)
             _dailyUsage = (DateTime.Now.Day, 0);
 
-        string[] args = ircMessage.Message.Split(' ');
+        string[] args = message.Content.Split(' ');
         if (args.Length == 0)
             return;
-        if (args[0] == ConfigLoader.Config.PingCommand)
+
+        if (args[0] == AppConfig.PingCommand)
         {
             TimeSpan uptime = DateTime.Now - _spawnTime;
-            _messageQueue.Enqueue($"{ircMessage.Username}, hi :) {uptime:hh'h'mm'm'ss's'}, {_dailyUsage.Tokens} tokens used today", 15);
-            return;
+            _messageQueue.Enqueue($"{message.Author.Name}, hi :) {uptime:hh'h'mm'm'ss's'}, {_dailyUsage.Tokens} tokens used today", 15);
         }
-
-        if (args[0] == ConfigLoader.Config.ForgetCommand)
+        else if (args[0] == AppConfig.ForgetCommand)
         {
-            OpenAiInteraction.ForgetContex(ircMessage.Username);
-            _messageQueue.Enqueue($"{ircMessage.Username}, 🗑 ✅ ", 15);
+            OpenAiInteraction.ForgetContex(message.Author.Name);
+            _messageQueue.Enqueue($"{message.Author.Name}, 🗑 ✅ ", 15);
             return;
         }
 
         if (args.Length < 2)
             return;
-        if (ConfigLoader.Config.DailyTokenUsageLimit > 0
-        && _dailyUsage.Tokens >= ConfigLoader.Config.DailyTokenUsageLimit)
-        {
-            return;
-        }
 
-        try
+        if (AppConfig.DailyTokenUsageLimit > 0 && _dailyUsage.Tokens >= AppConfig.DailyTokenUsageLimit)
+            return;
+
+        if (args[0].ToLower().Contains(AppConfig.Username))
         {
-            if (args.First().ToLower().Contains(ConfigLoader.Config.Username))
-            {
-                (string, byte, int) response = await OpenAiInteraction.Complete(
-                    ircMessage.Username,
-                    ircMessage.Message);
-                _messageQueue.Enqueue(response.Item1, response.Item2);
-                _dailyUsage.Tokens += response.Item3;
-                if (ConfigLoader.Config.Notify && response.Item3 >= ConfigLoader.Config.TokenThreshold)
-                    await Notify(response.Item3, ircMessage.Message);
-                return;
-            }
-        }
-        catch (Exception ex)
-        {
-            Log.Error(ex, "Exception caught: ");
+            (string, byte, int) response = await OpenAiInteraction.Complete(
+                    message.Author.Name,
+                    message.Content);
+            _messageQueue.Enqueue(response.Item1, response.Item2);
+            _dailyUsage.Tokens += response.Item3;
+            if (AppConfig.Notify && response.Item3 >= AppConfig.TokenThreshold)
+                await Notify(response.Item3, message.Content);
+            return;
         }
     }
 
     private static async Task Notify(int tokens, string prompt)
     {
-        if (string.IsNullOrEmpty(ConfigLoader.Config.NotifyWebhookLink))
+        if (string.IsNullOrEmpty(AppConfig.NotifyWebhookLink))
             return;
         var http = new HttpClient();
         var message = new
@@ -148,6 +124,6 @@ internal sealed class Bot
                 }
             }
         };
-        _ = await http.PostAsJsonAsync(ConfigLoader.Config.NotifyWebhookLink, message);
+        _ = await http.PostAsJsonAsync(AppConfig.NotifyWebhookLink, message);
     }
 }
