@@ -22,7 +22,7 @@ internal sealed class Bot
         {
             options.Username = AppConfig.Username;
             options.OAuth = AppConfig.AccessToken;
-            options.Logger = new LoggerFactory().AddSerilog(Log.Logger);
+            options.Logger = new LoggerFactory().AddSerilog(Log.Logger).CreateLogger<Bot>();
         });
 
         _client.OnConnect += async () =>
